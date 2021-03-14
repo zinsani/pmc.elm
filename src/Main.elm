@@ -49,10 +49,16 @@ init =
 mainInitModel : MDView.Model
 mainInitModel =
     { pmList =
-        []
+        [ { id = MDView.getId "1"
+          , name = "Pc-01"
+          }
+        , { id = MDView.getId "2"
+          , name = "Pc-02"
+          }
+        ]
     , playerList =
         []
-    , selectedPMId = Nothing
+    , selectedPMId = MDView.getId "1" |> Just
     }
 
 

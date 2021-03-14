@@ -1,4 +1,4 @@
-module MDView exposing (Model, Msg, Player, PlayerManager, init, update, view)
+module MDView exposing (Model, Msg, Player, PlayerManager, getId, init, update, view)
 
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
@@ -36,6 +36,11 @@ type Msg
 
 type Id
     = Id String
+
+
+getId : String -> Id
+getId id =
+    Id id
 
 
 init : Model
