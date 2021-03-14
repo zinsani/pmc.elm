@@ -5,6 +5,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, section, span, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
+import List
 
 
 type alias PlayerManager =
@@ -23,7 +24,9 @@ type alias Player =
 type alias Model =
     { pmList : List PlayerManager
     , playerList : List Player
+    , editingPM : Maybe PlayerManager
     , selectedPMId : Maybe Id
+    , lastInputPM : Maybe PlayerManager
     }
 
 
@@ -32,6 +35,7 @@ type Msg
     | SelectPlayer Id
     | AddNewPlayerManager
     | AddNewPlayer
+    | Submit
 
 
 type Id
@@ -59,21 +63,62 @@ init =
           , parentId = Id "1234"
           }
         ]
+    , lastInputPM = Nothing
+    , editingPM = Nothing
     , selectedPMId = Just (Id "1234")
     }
 
 
 update : Msg -> Model -> Model
 update msg model =
-    model
+    case msg of
+        AddNewPlayerManager ->
+            let
+                editingPM =
+                    case model.lastInputPM of
+                        Just existingItem ->
+                            Debug.log "AddNewPlayerManager:: existing"
+                                Just
+                                existingItem
+
+                        Nothing ->
+                            Debug.log "AddNewPlayerManager:: new"
+                                Just
+                                { id = Id "temp"
+                                , name = "PC-0"
+                                }
+            in
+            { model | editingPM = editingPM }
+
+        Submit ->
+            case model.editingPM of
+                Just editingPM ->
+                    { model
+                        | pmList = List.append model.pmList [ editingPM ]
+                        , lastInputPM = Just { editingPM | id = getId "temp" }
+                    }
+
+                Nothing ->
+                    model
+
+        _ ->
+            model
 
 
 view : Model -> Html Msg
 view model =
-    section [ class Bulma.section ]
-        [ viewActionBar
-        , viewPMList model
-        ]
+    case model.editingPM of
+        Just editingPM ->
+            section [ class Bulma.section ]
+                [ viewActionBar
+                , viewPMEdit editingPM
+                ]
+
+        Nothing ->
+            section [ class Bulma.section ]
+                [ viewActionBar
+                , viewPMList model
+                ]
 
 
 viewActionBar : Html msg
@@ -125,7 +170,7 @@ viewPMList model =
     case List.length model.pmList of
         0 ->
             div [ class Bulma.container ]
-                [ addButton AddNewPlayerManager
+                [ addButton AddNewPlayerManager "Add"
                 ]
 
         _ ->
@@ -133,6 +178,7 @@ viewPMList model =
                 [ List.map
                     viewPlayerManager
                     model.pmList
+                    |> (\pmList -> List.append pmList [ addButton AddNewPlayerManager "Add" ])
                     |> div
                         [ classList
                             [ Bulma.column
@@ -172,14 +218,23 @@ viewPlayerList model =
             ]
 
 
-addButton : Msg -> Html Msg
-addButton msg =
-    button
-        [ classList
-            [ Bulma.button
-            , Bulma.isPrimary
+addButton : Msg -> String -> Html Msg
+addButton msg label =
+    div [ class Bulma.mt3 ]
+        [ button
+            [ classList
+                [ Bulma.button
+                , Bulma.isPrimary
+                ]
+            , onClick (Debug.log "Click" msg)
             ]
-        , onClick msg
+            [ text label
+            ]
         ]
-        [ text "Add New PC"
+
+
+viewPMEdit : PlayerManager -> Html msg
+viewPMEdit pm =
+    div [ classList [ Bulma.container ] ]
+        [ viewPlayerManager pm
         ]

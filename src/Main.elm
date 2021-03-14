@@ -48,18 +48,7 @@ init =
 
 mainInitModel : MDView.Model
 mainInitModel =
-    { pmList =
-        [ { id = MDView.getId "1"
-          , name = "Pc-01"
-          }
-        , { id = MDView.getId "2"
-          , name = "Pc-02"
-          }
-        ]
-    , playerList =
-        []
-    , selectedPMId = MDView.getId "1" |> Just
-    }
+    MDView.init
 
 
 update : Msg -> Model -> Model
@@ -78,6 +67,9 @@ update msg model =
 
         ( AuthPage authModel, _ ) ->
             AuthPage authModel
+
+        ( MainPage mainModel, MDVMsg mdvMsg ) ->
+            MainPage (MDView.update mdvMsg mainModel)
 
         ( MainPage mainModel, _ ) ->
             MainPage mainModel
