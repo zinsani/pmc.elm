@@ -1,11 +1,12 @@
-module MDView exposing (Model, Msg, Player, PlayerManager, getId, init, update, view)
+module MDView exposing (Model, Msg, Player, PlayerManager, init, update, view)
 
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, h1, i, section, span, text)
-import Html.Attributes exposing (class)
-import Html.Events exposing (onClick)
-import List
+import Html exposing (Html, button, div, h1, i, input, label, section, span, text)
+import Html.Attributes exposing (class, type_, value)
+import Html.Events exposing (onClick, onInput)
+import Random
+import UUID exposing (UUID)
 
 
 type alias PlayerManager =
@@ -36,15 +37,20 @@ type Msg
     | AddNewPlayerManager
     | AddNewPlayer
     | Submit
+    | Cancel
+    | InputPMName String
+    | InputPName String
 
 
 type Id
     = Id String
+    | TempId
 
 
-getId : String -> Id
-getId id =
-    Id id
+
+-- createId =
+--     Random.step UUID.generator (Random.initialSeed 999)
+--         |> Debug.log "createId" Tuple.first
 
 
 init : Model
@@ -69,6 +75,13 @@ init =
     }
 
 
+defaultPM : PlayerManager
+defaultPM =
+    { id = TempId
+    , name = "PC-0"
+    }
+
+
 update : Msg -> Model -> Model
 update msg model =
     case msg of
@@ -84,25 +97,57 @@ update msg model =
                         Nothing ->
                             Debug.log "AddNewPlayerManager:: new"
                                 Just
-                                { id = Id "temp"
-                                , name = "PC-0"
-                                }
+                                defaultPM
+            in
+            { model | editingPM = editingPM }
+
+        InputPMName name ->
+            let
+                editingPM =
+                    case model.editingPM of
+                        Just pm ->
+                            Just (Debug.log "editingPM" { pm | name = name })
+
+                        Nothing ->
+                            Just defaultPM
             in
             { model | editingPM = editingPM }
 
         Submit ->
             case model.editingPM of
                 Just editingPM ->
-                    { model
-                        | pmList = List.append model.pmList [ editingPM ]
-                        , lastInputPM = Just { editingPM | id = getId "temp" }
-                    }
+                    Debug.log "submit"
+                        { model
+                            | pmList =
+                                List.append model.pmList
+                                    [ { editingPM
+                                        | id =
+                                            if editingPM.id == TempId then
+                                                Id "1111"
+
+                                            else
+                                                editingPM.id
+                                      }
+                                    ]
+                            , lastInputPM = getPMWithTempId editingPM
+                            , editingPM = Nothing
+                        }
 
                 Nothing ->
                     model
 
+        Cancel ->
+            { model
+                | editingPM = Nothing
+            }
+
         _ ->
             model
+
+
+getPMWithTempId : PlayerManager -> Maybe PlayerManager
+getPMWithTempId pm =
+    Just { pm | id = TempId }
 
 
 view : Model -> Html Msg
@@ -233,8 +278,32 @@ addButton msg label =
         ]
 
 
-viewPMEdit : PlayerManager -> Html msg
+viewPMEdit : PlayerManager -> Html Msg
 viewPMEdit pm =
     div [ classList [ Bulma.container ] ]
-        [ viewPlayerManager pm
+        [ inputText "Name" pm.name InputPMName
+        , div []
+            [ addButton Submit "Submit"
+            , addButton Cancel "Cancel"
+            ]
+        ]
+
+
+inputText : String -> String -> (String -> msg) -> Html msg
+inputText label_ value_ msg =
+    div [ class Bulma.field ]
+        [ label [ class Bulma.label ]
+            [ text label_
+            ]
+        , div [ class Bulma.control ]
+            [ input
+                [ classList
+                    [ Bulma.input
+                    ]
+                , type_ "text"
+                , onInput msg
+                , value value_
+                ]
+                []
+            ]
         ]
