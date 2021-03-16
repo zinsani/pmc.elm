@@ -1,10 +1,12 @@
-module MDView exposing (Model, Msg, Player, PlayerManager, init, update, view)
+module MDView exposing (Model, Msg, Player, PlayerManager, decode, encode, init, update, view)
 
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, input, label, section, span, text)
 import Html.Attributes exposing (class, type_, value)
 import Html.Events exposing (onClick, onInput)
+import Json.Decode as Decoder
+import Json.Encode as Encode
 import Random
 import UUID exposing (UUID)
 
@@ -45,6 +47,16 @@ type Msg
 type Id
     = Id String
     | TempId
+
+
+idToString : Id -> String
+idToString id =
+    case id of
+        Id id_ ->
+            id_
+
+        TempId ->
+            "temp"
 
 
 
@@ -307,3 +319,91 @@ inputText label_ value_ msg =
                 []
             ]
         ]
+
+
+encode : Model -> Encode.Value
+encode model =
+    let
+        cvtPM : PlayerManager -> Encode.Value
+        cvtPM =
+            \pm ->
+                Encode.object
+                    [ ( "id", Encode.string <| idToString pm.id )
+                    , ( "name", Encode.string pm.name )
+                    ]
+
+        pmList =
+            Encode.list
+                cvtPM
+                model.pmList
+
+        cvtPlayer : Player -> Encode.Value
+        cvtPlayer =
+            \p ->
+                Encode.object
+                    [ ( "id", Encode.string <| idToString p.id )
+                    , ( "name", Encode.string p.name )
+                    , ( "parentId", Encode.string <| idToString p.id )
+                    ]
+
+        players =
+            Encode.list
+                cvtPlayer
+                model.playerList
+    in
+    Encode.object
+        [ ( "pmList", pmList )
+        , ( "players", players )
+        ]
+
+
+idMapper : Decoder.Decoder String -> Decoder.Decoder Id
+idMapper =
+    Decoder.map
+        (\id_ ->
+            if id_ == "temp" then
+                TempId
+
+            else
+                Id id_
+        )
+
+
+decode : String -> Result Decoder.Error Model
+decode =
+    let
+        mapPM : Decoder.Decoder PlayerManager
+        mapPM =
+            Decoder.map2
+                PlayerManager
+                (Decoder.field "id" Decoder.string |> idMapper)
+                (Decoder.field "name" Decoder.string)
+
+        mapPMList =
+            Decoder.list mapPM
+
+        playerDecoder : Decoder.Decoder Player
+        playerDecoder =
+            Decoder.map3
+                Player
+                (Decoder.field "id" Decoder.string |> idMapper)
+                (Decoder.field "name" Decoder.string)
+                (Decoder.field "parentId" Decoder.string |> idMapper)
+
+        mapPlayerList =
+            Decoder.list playerDecoder
+
+        modelDecoder : List PlayerManager -> List Player -> Model
+        modelDecoder pmList playerList =
+            { pmList = pmList
+            , playerList = playerList
+            , selectedPMId = List.head pmList |> Maybe.map .id
+            , editingPM = Maybe.Nothing
+            , lastInputPM = Maybe.Nothing
+            }
+    in
+    Decoder.decodeString
+        (Decoder.map2 modelDecoder
+            (Decoder.field "pmList" mapPMList)
+            (Decoder.field "playerList" mapPlayerList)
+        )

@@ -1,22 +1,30 @@
-module Main exposing (main)
+port module Main exposing (main)
+import Json.Decode exposing (Value)
+
+port onStoreChange : (Value -> msg) -> Sub msg
 
 -- import Page
 
-import Browser
+import Browser exposing (document)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, input, label, main_, node, text)
-import Html.Attributes exposing (class, href, placeholder, rel, style, type_)
+import Html.Attributes exposing (class, href, placeholder, rel, style, title, type_)
 import Html.Events exposing (onClick, onInput)
 import MDView
 
 
-main : Program () Model Msg
+port storeCache : String -> Cmd msg
+port onStoreCached : String -> Msg
+
+
+main : Program (Maybe String) Model Msg
 main =
-    Browser.sandbox
+    Browser.document
         { init = init
         , update = update
         , view = view
+        , subscriptions = subscriptions
         }
 
 
@@ -37,13 +45,36 @@ type Msg
     | Authenticate
 
 
-init : Model
-init =
-    -- Main mainInitModel
-    AuthPage
-        { error = Nothing
-        , password = ""
-        }
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
+
+
+init : Maybe String -> ( Model, Cmd msg )
+init flags =
+    let
+        initialModel () =
+            Debug.log "flags on init" <|
+                case flags of
+                    Just json ->
+                        MDView.decode json
+                            |> Debug.log "decoding"
+                            |> Result.toMaybe
+
+                    Nothing ->
+                        Maybe.Nothing
+    in
+    case initialModel () of
+        Just model ->
+            ( MainPage model, Cmd.none )
+
+        Nothing ->
+            ( AuthPage
+                { error = Nothing
+                , password = ""
+                }
+            , Cmd.none
+            )
 
 
 mainInitModel : MDView.Model
@@ -51,31 +82,30 @@ mainInitModel =
     MDView.init
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
     case ( model, msg ) of
         ( AuthPage authModel, InputPassword pw ) ->
-            AuthPage { authModel | password = pw }
+            ( AuthPage { authModel | password = pw }, Cmd.none )
 
         ( AuthPage authModel, Authenticate ) ->
             case authModel.password of
                 "newmedia" ->
-                    MainPage mainInitModel
+                    ( MainPage mainInitModel, Cmd.none )
 
                 _ ->
-                    AuthPage { authModel | error = Just "Invalid Password" }
+                    ( AuthPage { authModel | error = Just "Invalid Password" }, Cmd.none )
 
         ( AuthPage authModel, _ ) ->
-            AuthPage authModel
+            ( AuthPage authModel, Cmd.none )
 
         ( MainPage mainModel, MDVMsg mdvMsg ) ->
-            MainPage (MDView.update mdvMsg mainModel)
+            ( MainPage (MDView.update mdvMsg mainModel), Cmd.none )
 
         ( MainPage mainModel, _ ) ->
-            MainPage mainModel
+            ( MainPage mainModel, Cmd.none )
 
 
-view : Model -> Html Msg
 view model =
     let
         content =
@@ -86,22 +116,32 @@ view model =
                 MainPage mdvm ->
                     MDView.view mdvm
                         |> Html.map MDVMsg
+
+        stylesheetBulma : Html msg
+        stylesheetBulma =
+            node "link"
+                [ rel "stylesheet"
+                , href "https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css"
+                ]
+                []
+
+        stylesheetFontAwesome : Html msg
+        stylesheetFontAwesome =
+            node "link"
+                [ rel "stylesheet"
+                , href "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css"
+                ]
+                []
     in
-    main_ []
-        [ node "link"
-            [ rel "stylesheet"
-            , href "https://cdn.jsdelivr.net/npm/bulma@0.9.0/css/bulma.min.css"
-            ]
-            []
-        , node "link"
-            [ rel "stylesheet"
-            , href "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.2/css/all.min.css"
-            ]
-            []
+    { title = "PlyaerManager Client"
+    , body =
+        [ stylesheetBulma
+        , stylesheetFontAwesome
         , div [ class Bulma.container ]
             [ content
             ]
         ]
+    }
 
 
 viewAuthPage : { a | error : Maybe String } -> Html Msg
