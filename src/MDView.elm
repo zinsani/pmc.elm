@@ -1,90 +1,21 @@
-module MDView exposing (Model, Msg, Player, PlayerManager, decode, encode, init, update, view)
+module MDView exposing (storeModel, subscriptions, update, view)
 
+import Api exposing (pmModelEncoder)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, input, label, section, span, text)
-import Html.Attributes exposing (class, type_, value)
+import Html.Attributes exposing (class, id, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as Decoder
+import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode
 import Random
-import UUID exposing (UUID)
+import Task
+import Types exposing (Id(..), PMModel, PMMsg(..), Player, PlayerManager, createId, idSeed)
 
 
-type alias PlayerManager =
-    { id : Id
-    , name : String
-    }
-
-
-type alias Player =
-    { id : Id
-    , name : String
-    , parentId : Id
-    }
-
-
-type alias Model =
-    { pmList : List PlayerManager
-    , playerList : List Player
-    , editingPM : Maybe PlayerManager
-    , selectedPMId : Maybe Id
-    , lastInputPM : Maybe PlayerManager
-    }
-
-
-type Msg
-    = SelectPM Id
-    | SelectPlayer Id
-    | AddNewPlayerManager
-    | AddNewPlayer
-    | Submit
-    | Cancel
-    | InputPMName String
-    | InputPName String
-
-
-type Id
-    = Id String
-    | TempId
-
-
-idToString : Id -> String
-idToString id =
-    case id of
-        Id id_ ->
-            id_
-
-        TempId ->
-            "temp"
-
-
-
--- createId =
---     Random.step UUID.generator (Random.initialSeed 999)
---         |> Debug.log "createId" Tuple.first
-
-
-init : Model
-init =
-    { pmList =
-        [ { id = Id "1234"
-          , name = "PC-01"
-          }
-        , { id = Id "2345"
-          , name = "PC-02"
-          }
-        ]
-    , playerList =
-        [ { id = Id "12341234"
-          , name = "Player-01"
-          , parentId = Id "1234"
-          }
-        ]
-    , lastInputPM = Nothing
-    , editingPM = Nothing
-    , selectedPMId = Just (Id "1234")
-    }
+subscriptions : PMModel -> Sub PMMsg
+subscriptions model =
+    Sub.none
 
 
 defaultPM : PlayerManager
@@ -94,24 +25,23 @@ defaultPM =
     }
 
 
-update : Msg -> Model -> Model
+update : PMMsg -> PMModel -> ( PMModel, Cmd PMMsg )
 update msg model =
     case msg of
-        AddNewPlayerManager ->
+        ClickNewPlayerManager ->
             let
+                editingPM : PlayerManager
                 editingPM =
                     case model.lastInputPM of
                         Just existingItem ->
                             Debug.log "AddNewPlayerManager:: existing"
-                                Just
                                 existingItem
 
                         Nothing ->
                             Debug.log "AddNewPlayerManager:: new"
-                                Just
                                 defaultPM
             in
-            { model | editingPM = editingPM }
+            ( { model | editingPM = Just editingPM }, Cmd.none )
 
         InputPMName name ->
             let
@@ -123,38 +53,73 @@ update msg model =
                         Nothing ->
                             Just defaultPM
             in
-            { model | editingPM = editingPM }
+            ( { model | editingPM = editingPM }, Cmd.none )
 
-        Submit ->
+        AddNewPlayerManager pm ->
+            let
+                newModel =
+                    { model
+                        | pmList = model.pmList ++ [ pm ]
+                        , editingPM = Nothing
+                    }
+            in
+            ( newModel
+            , storeModel newModel
+            )
+
+        ClickSubmit ->
             case model.editingPM of
                 Just editingPM ->
-                    Debug.log "submit"
-                        { model
-                            | pmList =
-                                List.append model.pmList
-                                    [ { editingPM
-                                        | id =
-                                            if editingPM.id == TempId then
-                                                Id "1111"
+                    case editingPM.id of
+                        TempId ->
+                            ( model, createIdIfNecessary editingPM AddNewPlayerManager )
 
-                                            else
-                                                editingPM.id
-                                      }
-                                    ]
-                            , lastInputPM = getPMWithTempId editingPM
-                            , editingPM = Nothing
-                        }
+                        Id _ ->
+                            ( { model | pmList = modifyList editingPM model.pmList }, Cmd.none )
 
                 Nothing ->
-                    model
+                    ( model, Cmd.none )
 
-        Cancel ->
-            { model
+        ClickCancel ->
+            ( { model
                 | editingPM = Nothing
-            }
+              }
+            , Cmd.none
+            )
 
         _ ->
-            model
+            ( model, Cmd.none )
+
+
+storeModel : PMModel -> Cmd msg
+storeModel model =
+    Api.storeCache <| pmModelEncoder model
+
+
+modifyList : { a | id : b } -> List { a | id : b } -> List { a | id : b }
+modifyList obj list =
+    List.map
+        (\x ->
+            if obj.id == x.id then
+                obj
+
+            else
+                x
+        )
+        list
+
+
+createIdIfNecessary : { a | id : Id } -> ({ a | id : Id } -> msg) -> Cmd msg
+createIdIfNecessary obj msg =
+    let
+        id =
+            if obj.id == TempId then
+                Id <| createId idSeed
+
+            else
+                obj.id
+    in
+    Task.perform msg (Task.succeed { obj | id = id })
 
 
 getPMWithTempId : PlayerManager -> Maybe PlayerManager
@@ -162,7 +127,7 @@ getPMWithTempId pm =
     Just { pm | id = TempId }
 
 
-view : Model -> Html Msg
+view : PMModel -> Html PMMsg
 view model =
     case model.editingPM of
         Just editingPM ->
@@ -222,12 +187,12 @@ viewActionBar =
         ]
 
 
-viewPMList : Model -> Html Msg
+viewPMList : PMModel -> Html PMMsg
 viewPMList model =
     case List.length model.pmList of
         0 ->
             div [ class Bulma.container ]
-                [ addButton AddNewPlayerManager "Add"
+                [ addButton ClickNewPlayerManager "Add"
                 ]
 
         _ ->
@@ -235,7 +200,7 @@ viewPMList model =
                 [ List.map
                     viewPlayerManager
                     model.pmList
-                    |> (\pmList -> List.append pmList [ addButton AddNewPlayerManager "Add" ])
+                    |> (\pmList -> List.append pmList [ addButton ClickNewPlayerManager "Add" ])
                     |> div
                         [ classList
                             [ Bulma.column
@@ -256,7 +221,7 @@ viewPlayerManager pm =
         ]
 
 
-viewPlayerList : Model -> List (Html msg)
+viewPlayerList : PMModel -> List (Html msg)
 viewPlayerList model =
     case model.selectedPMId of
         Just selectedPMId ->
@@ -275,7 +240,7 @@ viewPlayerList model =
             ]
 
 
-addButton : Msg -> String -> Html Msg
+addButton : PMMsg -> String -> Html PMMsg
 addButton msg label =
     div [ class Bulma.mt3 ]
         [ button
@@ -290,13 +255,13 @@ addButton msg label =
         ]
 
 
-viewPMEdit : PlayerManager -> Html Msg
+viewPMEdit : PlayerManager -> Html PMMsg
 viewPMEdit pm =
     div [ classList [ Bulma.container ] ]
         [ inputText "Name" pm.name InputPMName
         , div []
-            [ addButton Submit "Submit"
-            , addButton Cancel "Cancel"
+            [ addButton ClickSubmit "Submit"
+            , addButton ClickCancel "Cancel"
             ]
         ]
 
@@ -319,91 +284,3 @@ inputText label_ value_ msg =
                 []
             ]
         ]
-
-
-encode : Model -> Encode.Value
-encode model =
-    let
-        cvtPM : PlayerManager -> Encode.Value
-        cvtPM =
-            \pm ->
-                Encode.object
-                    [ ( "id", Encode.string <| idToString pm.id )
-                    , ( "name", Encode.string pm.name )
-                    ]
-
-        pmList =
-            Encode.list
-                cvtPM
-                model.pmList
-
-        cvtPlayer : Player -> Encode.Value
-        cvtPlayer =
-            \p ->
-                Encode.object
-                    [ ( "id", Encode.string <| idToString p.id )
-                    , ( "name", Encode.string p.name )
-                    , ( "parentId", Encode.string <| idToString p.id )
-                    ]
-
-        players =
-            Encode.list
-                cvtPlayer
-                model.playerList
-    in
-    Encode.object
-        [ ( "pmList", pmList )
-        , ( "players", players )
-        ]
-
-
-idMapper : Decoder.Decoder String -> Decoder.Decoder Id
-idMapper =
-    Decoder.map
-        (\id_ ->
-            if id_ == "temp" then
-                TempId
-
-            else
-                Id id_
-        )
-
-
-decode : String -> Result Decoder.Error Model
-decode =
-    let
-        mapPM : Decoder.Decoder PlayerManager
-        mapPM =
-            Decoder.map2
-                PlayerManager
-                (Decoder.field "id" Decoder.string |> idMapper)
-                (Decoder.field "name" Decoder.string)
-
-        mapPMList =
-            Decoder.list mapPM
-
-        playerDecoder : Decoder.Decoder Player
-        playerDecoder =
-            Decoder.map3
-                Player
-                (Decoder.field "id" Decoder.string |> idMapper)
-                (Decoder.field "name" Decoder.string)
-                (Decoder.field "parentId" Decoder.string |> idMapper)
-
-        mapPlayerList =
-            Decoder.list playerDecoder
-
-        modelDecoder : List PlayerManager -> List Player -> Model
-        modelDecoder pmList playerList =
-            { pmList = pmList
-            , playerList = playerList
-            , selectedPMId = List.head pmList |> Maybe.map .id
-            , editingPM = Maybe.Nothing
-            , lastInputPM = Maybe.Nothing
-            }
-    in
-    Decoder.decodeString
-        (Decoder.map2 modelDecoder
-            (Decoder.field "pmList" mapPMList)
-            (Decoder.field "playerList" mapPlayerList)
-        )

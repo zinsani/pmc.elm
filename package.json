@@ -1,0 +1,17 @@
+{
+  "name": "study-elm",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "parcel public/index.html",
+    "build": "elm make src/Main.elm --optimize --output=build/output/elm.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "elm-hot": "^1.1.6",
+    "node-elm-compiler": "^5.0.5"
+  }
+}

@@ -1,121 +1,185 @@
-port module Main exposing (main)
-import Json.Decode exposing (Value)
+module Main exposing (main)
 
-port onStoreChange : (Value -> msg) -> Sub msg
-
--- import Page
-
-import Browser exposing (document)
+import Api
+import Browser
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, input, label, main_, node, text)
-import Html.Attributes exposing (class, href, placeholder, rel, style, title, type_)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html, button, div, h1, i, input, label, node, span, table, tbody, td, text, th, thead, tr)
+import Html.Attributes exposing (checked, class, hidden, href, placeholder, rel, selected, style, type_, value)
+import Html.Events exposing (onBlur, onCheck, onClick, onDoubleClick, onInput)
+import Json.Decode exposing (Value)
 import MDView
+import Types exposing (Data, Model(..), Msg(..), PMMsg, Site, SiteListMsg(..), Sites)
 
 
-port storeCache : String -> Cmd msg
-port onStoreCached : String -> Msg
+init : Maybe Data -> ( Model, Cmd Msg )
+init storedData =
+    case storedData of
+        Nothing ->
+            let
+                _ =
+                    Debug.log "Nothing stored yet"
+            in
+            ( SiteListPage { sites = Api.emptySiteData, pmModels = [] }, Cmd.none )
 
+        Just data ->
+            let
+                defaultSiteModel =
+                    Debug.log "defaultSiteModel" SiteListPage data
+            in
+            case ( data.sites, data.sites.selected ) of
+                ( _, Nothing ) ->
+                    ( defaultSiteModel, Cmd.none )
 
-main : Program (Maybe String) Model Msg
-main =
-    Browser.document
-        { init = init
-        , update = update
-        , view = view
-        , subscriptions = subscriptions
-        }
-
-
-type Model
-    = MainPage MDView.Model
-    | AuthPage AuthModel
-
-
-type alias AuthModel =
-    { password : String
-    , error : Maybe String
-    }
-
-
-type Msg
-    = MDVMsg MDView.Msg
-    | InputPassword String
-    | Authenticate
+                ( _, Just siteId ) ->
+                    ( defaultSiteModel, Api.loadPMDataOfSite OpenSite siteId data.pmModels )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Api.onStoreChange (\value -> UpdateData <| Api.decodeFromChange value)
 
 
-init : Maybe String -> ( Model, Cmd msg )
-init flags =
-    let
-        initialModel () =
-            Debug.log "flags on init" <|
-                case flags of
-                    Just json ->
-                        MDView.decode json
-                            |> Debug.log "decoding"
-                            |> Result.toMaybe
 
-                    Nothing ->
-                        Maybe.Nothing
-    in
-    case initialModel () of
-        Just model ->
-            ( MainPage model, Cmd.none )
-
-        Nothing ->
-            ( AuthPage
-                { error = Nothing
-                , password = ""
-                }
-            , Cmd.none
-            )
+-- updateModel : Value -> Msg
+-- updateModel val =
+--     case MDView.decode val of
+--         Result.Ok model ->
+--             UpdateModel model
+--         Result.Err err ->
+--             UpdateError <| Decode.errorToString err
 
 
-mainInitModel : MDView.Model
-mainInitModel =
-    MDView.init
-
-
-update : Msg -> Model -> ( Model, Cmd msg )
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( AuthPage authModel, InputPassword pw ) ->
-            ( AuthPage { authModel | password = pw }, Cmd.none )
+        ( SiteListPage _, UpdateData newData ) ->
+            case Debug.log "newData" newData of
+                Just newDataFound ->
+                    ( SiteListPage newDataFound, Cmd.none )
 
-        ( AuthPage authModel, Authenticate ) ->
-            case authModel.password of
-                "newmedia" ->
-                    ( MainPage mainInitModel, Cmd.none )
+                Nothing ->
+                    ( model, Cmd.none )
 
-                _ ->
-                    ( AuthPage { authModel | error = Just "Invalid Password" }, Cmd.none )
+        ( SiteListPage data, SiteListMsg slmsg ) ->
+            let
+                ( siteModel, slMsg ) =
+                    updateSiteListMsg data slmsg
+            in
+            ( SiteListPage siteModel, slMsg )
 
-        ( AuthPage authModel, _ ) ->
-            ( AuthPage authModel, Cmd.none )
+        ( _, OpenSite newPMModel ) ->
+            ( MainPage newPMModel, Cmd.none )
 
-        ( MainPage mainModel, MDVMsg mdvMsg ) ->
-            ( MainPage (MDView.update mdvMsg mainModel), Cmd.none )
+        ( MainPage mainModel, PMMsg mdvMsg ) ->
+            let
+                ( newModel, cmd ) =
+                    MDView.update mdvMsg mainModel
+            in
+            ( MainPage newModel, Cmd.map PMMsg cmd )
 
-        ( MainPage mainModel, _ ) ->
-            ( MainPage mainModel, Cmd.none )
+        ( _, _ ) ->
+            ( model, Cmd.none )
 
 
+updateSiteListMsg : Data -> SiteListMsg -> ( Data, Cmd Msg )
+updateSiteListMsg data slmsg =
+    let
+        sites =
+            data.sites
+
+        ( newSites, cmd ) =
+            case slmsg of
+                InputSiteName siteName ->
+                    ( { sites | newSiteName = siteName }, Cmd.none )
+
+                ClickNewSite siteName ->
+                    -- ( { sites
+                    --     | list = Api.createNewSite siteName sites.list
+                    --     , newSiteName = ""
+                    --   }
+                    -- , Cmd.none
+                    -- )
+                    ( sites, Api.createNewSite siteName data )
+
+                StartEditSite id ->
+                    let
+                        editingSite =
+                            List.filter (\s -> s.id == id) sites.list
+                                |> List.head
+                    in
+                    ( { sites | editingSite = editingSite }, Cmd.none )
+
+                EditingSiteName modifiedName ->
+                    case sites.editingSite of
+                        Nothing ->
+                            ( sites, Cmd.none )
+
+                        Just modified ->
+                            let
+                                newSite =
+                                    { modified | name = modifiedName }
+                            in
+                            ( { sites | editingSite = Just newSite }
+                            , Cmd.none
+                            )
+
+                EndEditSite modified ->
+                    let
+                        newList =
+                            List.map
+                                (\s ->
+                                    if s.id == modified.id then
+                                        modified
+
+                                    else
+                                        s
+                                )
+                                sites.list
+                    in
+                    ( { sites | editingSite = Nothing, list = newList }, Cmd.none )
+
+                ToggleSaveSelection save ->
+                    ( { sites | saveSelection = save }, Cmd.none )
+
+                ClickOpenSite siteId ->
+                    let
+                        selected : Maybe Site
+                        selected =
+                            List.filter (\s -> s.id == siteId) sites.list
+                                |> List.head
+
+                        newSite : Sites
+                        newSite =
+                            if sites.saveSelection then
+                                { sites
+                                    | selected = Maybe.map (\s -> s.id) selected
+                                }
+
+                            else
+                                sites
+                    in
+                    -- ( newSite, openSite foundSelected )
+                    ( newSite, Api.loadPMDataOfSite OpenSite siteId data.pmModels )
+
+                ClickDeleteSite siteId ->
+                    ( { sites | list = List.filter (\s -> not <| s.id == siteId) sites.list }, Cmd.none )
+    in
+    ( { data | sites = newSites }, cmd )
+
+
+view : Model -> { title : String, body : List (Html Msg) }
 view model =
     let
         content =
             case model of
-                AuthPage authModel ->
-                    viewAuthPage authModel
+                SiteListPage data ->
+                    viewSiteList data.sites
+                        |> Html.map SiteListMsg
 
                 MainPage mdvm ->
                     MDView.view mdvm
-                        |> Html.map MDVMsg
+                        |> Html.map PMMsg
 
         stylesheetBulma : Html msg
         stylesheetBulma =
@@ -144,79 +208,131 @@ view model =
     }
 
 
-viewAuthPage : { a | error : Maybe String } -> Html Msg
-viewAuthPage model =
-    div
-        [ class
-            Bulma.container
-        ]
-        [ div
-            [ classList
-                [ Bulma.columns
-                , Bulma.isCentered
-                , Bulma.mt4
+viewSiteList : Sites -> Html SiteListMsg
+viewSiteList model =
+    let
+        viewSiteName site =
+            case model.editingSite of
+                Nothing ->
+                    td [ onDoubleClick <| StartEditSite site.id ] [ span [] [ text site.name ] ]
+
+                Just editing ->
+                    if editing.id == site.id then
+                        td []
+                            [ div [ class Bulma.field ]
+                                [ div [ class Bulma.control ]
+                                    [ input
+                                        [ onInput EditingSiteName
+                                        , value editing.name
+                                        , onBlur <| EndEditSite editing
+                                        ]
+                                        []
+                                    ]
+                                ]
+                            ]
+
+                    else
+                        td [] [ span [] [ text site.name ] ]
+
+        viewSite : Site -> Html SiteListMsg
+        viewSite site =
+            tr []
+                [ td [ class Bulma.hasTextCentered ] [ text <| String.fromInt site.id ]
+                , viewSiteName site
+                , td [ class Bulma.hasTextCentered ]
+                    [ div [ class Bulma.field ]
+                        [ div [ class Bulma.control ]
+                            [ button
+                                [ classList [ Bulma.mr1, Bulma.button, Bulma.isPrimary, Bulma.isSmall ]
+                                , onClick <| ClickOpenSite site.id
+                                ]
+                                [ span [ class Bulma.icon ]
+                                    [ i [ class "fa fa-search-plus" ] []
+                                    ]
+                                ]
+                            , button
+                                [ classList [ Bulma.button, Bulma.isDanger, Bulma.isSmall ]
+                                , onClick <| ClickDeleteSite site.id
+                                ]
+                                [ span [ class Bulma.icon ]
+                                    [ i [ class "fa fa-trash" ] []
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
                 ]
-            ]
-            [ div
-                [ classList
-                    [ Bulma.column
-                    , Bulma.isHalf
-                    , Bulma.box
-                    ]
-                ]
-                [ div
-                    [ classList
-                        [ Bulma.isSize3
-                        , Bulma.block
-                        , Bulma.hasTextCentered
+
+        content =
+            if List.isEmpty model.list then
+                div [ classList [ Bulma.mt2, Bulma.px3 ] ] [ text "Welcome to PlayerManagerClient. Why don't you create new site?" ]
+
+            else
+                div [ class Bulma.mt2 ]
+                    [ table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
+                        [ thead []
+                            [ th [ class Bulma.hasTextCentered ]
+                                [ text "No."
+                                ]
+                            , th [ style "width" "60%" ]
+                                [ text "Name"
+                                ]
+                            , th [ class Bulma.hasTextCentered ]
+                                [ text "Open"
+                                ]
+                            ]
+                        , List.sortBy .id model.list
+                            |> List.map
+                                viewSite
+                            |> tbody []
                         ]
                     ]
-                    [ text "PlayerManager Client" ]
-                , div
-                    [ class Bulma.field
+    in
+    div [ class Bulma.container ]
+        [ div [ classList [ Bulma.columns, Bulma.isCentered ] ]
+            [ div [ classList [ Bulma.column, Bulma.box, Bulma.isHalf ] ]
+                [ div [ classList [ Bulma.mb4, Bulma.px3 ] ]
+                    [ h1 [ class Bulma.title ] [ text "Site List" ]
                     ]
-                    [ label
-                        [ class Bulma.label
-                        ]
-                        [ text "Password" ]
-                    , div
-                        [ class Bulma.control
-                        ]
+                , div [ classList [ Bulma.field, Bulma.hasAddons, Bulma.px3 ] ]
+                    [ div [ classList [ Bulma.control, Bulma.isExpanded ] ]
                         [ input
                             [ class Bulma.input
-                            , type_ "password"
-                            , placeholder "Input Password"
-                            , onInput InputPassword
+                            , type_ "text"
+                            , placeholder "Site Name"
+                            , onInput InputSiteName
+                            , value model.newSiteName
                             ]
                             []
                         ]
-                    ]
-                , div
-                    [ class Bulma.field ]
-                    [ div
-                        [ class Bulma.control
-                        ]
+                    , div [ class Bulma.control ]
                         [ button
-                            [ classList
-                                [ Bulma.button
-                                , Bulma.isPrimary
-                                ]
-                            , onClick Authenticate
+                            [ classList [ Bulma.button, Bulma.isPrimary ]
+                            , onClick <| ClickNewSite model.newSiteName
                             ]
-                            [ text "Enter"
+                            [ text "New"
                             ]
                         ]
                     ]
-                , div [ class Bulma.hasTextDanger ]
-                    [ text
-                        (case model.error of
-                            Just message ->
-                                message
-
-                            Nothing ->
-                                ""
-                        )
+                , content
+                , div [ class Bulma.hasTextRight, hidden <| List.isEmpty model.list ]
+                    [ label [ classList [ Bulma.checkbox, Bulma.isToggle ] ]
+                        [ input
+                            [ type_ "checkbox", onCheck ToggleSaveSelection, checked <| model.saveSelection ]
+                            []
+                        , text "Save Selection"
+                        ]
                     ]
                 ]
             ]
         ]
+
+
+main : Program (Maybe Value) Model Msg
+main =
+    Api.application
+        { init = init
+        , update = update
+        , view = view
+        , subscriptions = subscriptions
+        }
