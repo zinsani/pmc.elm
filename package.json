@@ -1,5 +1,5 @@
 {
-  "name": "study-elm",
+  "name": "pmc-elm",
   "version": "1.0.0",
   "description": "",
   "main": "src/index.js",
@@ -8,7 +8,7 @@
     "build": "elm make src/Main.elm --optimize --output=build/output/elm.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "zinsani@gmail.com",
   "license": "ISC",
   "devDependencies": {
     "elm-hot": "^1.1.6",
