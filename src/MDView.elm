@@ -6,15 +6,12 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, input, label, section, span, text)
 import Html.Attributes exposing (class, id, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as Decode exposing (Decoder)
-import Json.Encode as Encode
-import Random
 import Task
-import Types exposing (Id(..), PMModel, PMMsg(..), Player, PlayerManager, createId, idSeed)
+import Types exposing (Id(..), PMModel, PMMsg(..), PlayerManager, createId, idSeed)
 
 
 subscriptions : PMModel -> Sub PMMsg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -120,11 +117,6 @@ createIdIfNecessary obj msg =
                 obj.id
     in
     Task.perform msg (Task.succeed { obj | id = id })
-
-
-getPMWithTempId : PlayerManager -> Maybe PlayerManager
-getPMWithTempId pm =
-    Just { pm | id = TempId }
 
 
 view : PMModel -> Html PMMsg

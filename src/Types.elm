@@ -2,7 +2,7 @@ module Types exposing (..)
 
 import Json.Decode as Decode
 import Random
-import UUID exposing (UUID)
+import UUID
 
 
 type alias Data =

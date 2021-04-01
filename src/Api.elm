@@ -102,6 +102,7 @@ storageDecoder =
         (Decode.field "pmModels" (Decode.list pmModelDecoder))
 
 
+sitesDecoder : Decoder Sites
 sitesDecoder =
     Decode.map5
         Sites
@@ -139,26 +140,38 @@ defaultPM siteId =
     }
 
 
-encodePM v =
+idEncoder : Id -> Value
+idEncoder id =
+    case id of
+        Id id_ ->
+            Encode.string id_
+
+        TempId ->
+            Encode.string "temp"
+
+
+pmEncoder : PlayerManager -> Value
+pmEncoder pm =
     Encode.object
-        [ ( "id", Encode.string "" )
-        , ( "name", Encode.string "" )
+        [ ( "id", idEncoder pm.id )
+        , ( "name", Encode.string pm.name )
         ]
 
 
-encodePlayer v =
+playerEncoder : Player -> Value
+playerEncoder p =
     Encode.object
-        [ ( "name", Encode.string "" ) ]
+        [ ( "name", Encode.string p.name ) ]
 
 
 defaultModelJson : Value
 defaultModelJson =
     Encode.object
         [ ( "pmList"
-          , Encode.list encodePM []
+          , Encode.list pmEncoder []
           )
         , ( "players"
-          , Encode.list encodePlayer []
+          , Encode.list playerEncoder []
           )
         ]
 
