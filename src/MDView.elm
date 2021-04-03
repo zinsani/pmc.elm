@@ -4,10 +4,9 @@ import Api exposing (pmModelEncoder)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, input, label, section, span, text)
-import Html.Attributes exposing (class, id, type_, value)
+import Html.Attributes exposing (class, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Task
-import Types exposing (Id(..), PMModel, PMMsg(..), PlayerManager, createId, idSeed)
+import Types exposing (FetchingModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), PMModel, PMMsg(..), PlayerManager)
 
 
 subscriptions : PMModel -> Sub PMMsg
@@ -22,7 +21,7 @@ defaultPM =
     }
 
 
-update : PMMsg -> PMModel -> ( PMModel, Cmd PMMsg )
+update : PMMsg -> PMModel -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ClickNewPlayerManager ->
@@ -38,7 +37,7 @@ update msg model =
                             Debug.log "AddNewPlayerManager:: new"
                                 defaultPM
             in
-            ( { model | editingPM = Just editingPM }, Cmd.none )
+            ( MainPage { model | editingPM = Just editingPM }, Cmd.none )
 
         InputPMName name ->
             let
@@ -50,73 +49,64 @@ update msg model =
                         Nothing ->
                             Just defaultPM
             in
-            ( { model | editingPM = editingPM }, Cmd.none )
+            ( MainPage { model | editingPM = editingPM }, Cmd.none )
 
-        AddNewPlayerManager pm ->
-            let
-                newModel =
-                    { model
-                        | pmList = model.pmList ++ [ pm ]
-                        , editingPM = Nothing
-                    }
-            in
-            ( newModel
-            , storeModel newModel
-            )
-
+        -- AddNewPlayerManager pm ->
+        --     ( Fetching (FetchingSite model.siteId)
+        --     , Api.createNewPM FetchingPMModel pm model
+        --         |> Cmd.map FetchingMsg
+        --     )
         ClickSubmit ->
             case model.editingPM of
                 Just editingPM ->
                     case editingPM.id of
                         TempId ->
-                            ( model, createIdIfNecessary editingPM AddNewPlayerManager )
+                            ( Fetching (UpdatingSite model.siteId)
+                            , Api.createNewPM FetchingPMModel editingPM model |> Cmd.map FetchingMsg
+                            )
 
                         Id _ ->
-                            ( { model | pmList = modifyList editingPM model.pmList }, Cmd.none )
+                            ( Fetching (UpdatingSite model.siteId)
+                            , Api.modifyPMList FetchingPMModel
+                                (model.pmList
+                                    |> List.map
+                                        (\pm ->
+                                            if pm.id == editingPM.id then
+                                                editingPM
+
+                                            else
+                                                pm
+                                        )
+                                )
+                                editingPM
+                                model
+                                |> Cmd.map FetchingMsg
+                            )
 
                 Nothing ->
-                    ( model, Cmd.none )
+                    ( MainPage model, Cmd.none )
 
         ClickCancel ->
-            ( { model
-                | editingPM = Nothing
-              }
+            ( MainPage
+                { model
+                    | editingPM = Nothing
+                }
             , Cmd.none
             )
 
-        _ ->
-            ( model, Cmd.none )
+        BackToSiteList ->
+            ( Fetching FetchingSiteList, Api.fetch () )
+
+        ClickNewPlayer ->
+            Debug.todo "branch 'ClickNewPlayer' not implemented"
+
+        InputPName _ ->
+            Debug.todo "branch 'InputPName _' not implemented"
 
 
 storeModel : PMModel -> Cmd msg
 storeModel model =
-    Api.storeCache <| pmModelEncoder model
-
-
-modifyList : { a | id : b } -> List { a | id : b } -> List { a | id : b }
-modifyList obj list =
-    List.map
-        (\x ->
-            if obj.id == x.id then
-                obj
-
-            else
-                x
-        )
-        list
-
-
-createIdIfNecessary : { a | id : Id } -> ({ a | id : Id } -> msg) -> Cmd msg
-createIdIfNecessary obj msg =
-    let
-        id =
-            if obj.id == TempId then
-                Id <| createId idSeed
-
-            else
-                obj.id
-    in
-    Task.perform msg (Task.succeed { obj | id = id })
+    Api.storePMModel <| pmModelEncoder model
 
 
 view : PMModel -> Html PMMsg
@@ -135,7 +125,7 @@ view model =
                 ]
 
 
-viewActionBar : Html msg
+viewActionBar : Html PMMsg
 viewActionBar =
     div
         [ classList
@@ -150,7 +140,16 @@ viewActionBar =
                 , Bulma.hasBackgroundLight
                 ]
             ]
-            [ span [ class Bulma.isSize4 ] [ text "Player Manager Client" ]
+            [ div [ class Bulma.isSize4 ]
+                [ button
+                    [ classList [ Bulma.button, Bulma.isRounded, Bulma.isLight, Bulma.mr4 ]
+                    , onClick BackToSiteList
+                    ]
+                    [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
+                        [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
+                    ]
+                , text "Player Manager Client"
+                ]
             , div
                 [ classList
                     [ Bulma.block
@@ -240,7 +239,7 @@ addButton msg label =
                 [ Bulma.button
                 , Bulma.isPrimary
                 ]
-            , onClick (Debug.log "Click" msg)
+            , onClick msg
             ]
             [ text label
             ]

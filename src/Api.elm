@@ -3,55 +3,164 @@ port module Api exposing (..)
 import Browser
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
+import Process
 import Task
-import Types exposing (Data, Id(..), PMModel, Player, PlayerManager, Site, Sites, idToString)
+import Types exposing (Data, Id(..), PMModel, Player, PlayerManager, Site, Sites, createId, idSeed, idToString)
 
 
-port storeCache : Value -> Cmd msg
+port fetch : () -> Cmd msg
+
+
+port storeData : Value -> Cmd msg
+
+
+port storeSites : Value -> Cmd msg
 
 
 port storePMModels : Value -> Cmd msg
 
 
+port storePMModel : Value -> Cmd msg
+
+
 port onStoreChange : (Value -> msg) -> Sub msg
 
 
-createNewSite : String -> Data -> Cmd msg
-createNewSite siteName data =
+
+-- fetchMsg : (a -> msg) -> Cmd msg
+-- fetchMsg msg =
+--     fetch ()
+--         |> Cmd.map msg
+
+
+initialize : msg -> Cmd msg
+initialize msg =
+    Cmd.batch
+        [ { sites = defaultSites, pmModels = [] }
+            |> storageEncoder
+            |> storeData
+        , getResultAfter msg 0
+        ]
+
+
+createNewSite : msg -> String -> Sites -> Cmd msg
+createNewSite msg siteName sites =
     let
-        list =
-            data.sites.list
-
-        maxId : Maybe Int
-        maxId =
-            List.map (\el -> el.id) list
-                |> List.maximum
-
         newId =
-            case maxId of
-                Just id ->
-                    id + 1
-
-                Nothing ->
-                    1
+            (List.map (\el -> el.id) sites.list
+                |> List.maximum
+                |> Maybe.withDefault 0
+            )
+                + 1
 
         newList =
-            List.append list [ { id = newId, name = siteName } ]
-
-        sites =
-            data.sites
-
-        newSites =
-            Debug.log "newSites" { sites | list = newList }
+            sites.list ++ [ { id = newId, name = siteName } ]
     in
-    { data | sites = newSites }
-        -- |> Task.succeed (\_ -> "Waiting...")
-        |> storageEncoder
-        |> storeCache
+    Cmd.batch
+        [ { sites | list = newList }
+            |> sitesEncoder
+            |> storeSites
+        , defaultPM newId
+            |> pmModelEncoder
+            |> storePMModel
+        , getResultAfter msg 10
+        ]
 
 
-emptySiteData : Sites
-emptySiteData =
+selectSite : msg -> Int -> Sites -> Cmd msg
+selectSite msg siteId sites =
+    let
+        newSites =
+            { sites
+                | selected =
+                    if sites.saveSelection then
+                        Just siteId
+
+                    else
+                        Nothing
+            }
+    in
+    Cmd.batch
+        [ newSites
+            |> sitesEncoder
+            |> storeSites
+        , getResultAfter msg 0
+        ]
+
+
+getResultAfter : msg -> Float -> Cmd msg
+getResultAfter msg waitMs =
+    Process.sleep waitMs
+        |> Task.perform (\_ -> msg)
+
+
+modifySiteList : msg -> List Site -> Sites -> Cmd msg
+modifySiteList msg modified sites =
+    let
+        newSites =
+            { sites
+                | list = modified
+                , editingSite = Nothing
+            }
+    in
+    Cmd.batch
+        [ newSites
+            |> sitesEncoder
+            |> storeSites
+        , getResultAfter msg 10
+        ]
+
+
+createIdIfNecessary : { a | id : Id } -> { a | id : Id }
+createIdIfNecessary obj =
+    if obj.id == TempId then
+        { obj | id = Id <| createId idSeed }
+
+    else
+        obj
+
+
+createNewPM : msg -> PlayerManager -> PMModel -> Cmd msg
+createNewPM msg newPM model =
+    let
+        pm =
+            createIdIfNecessary newPM
+    in
+    Cmd.batch
+        [ { model
+            | pmList = model.pmList ++ [ pm ]
+            , editingPM = Nothing
+            , lastInputPM = Just newPM
+          }
+            |> pmModelEncoder
+            |> storePMModel
+        , getResultAfter msg 0
+        ]
+
+
+modifyPMList : msg -> List PlayerManager -> PlayerManager -> PMModel -> Cmd msg
+modifyPMList msg modifiedList pm model =
+    Cmd.batch
+        [ { model
+            | pmList = modifiedList
+            , editingPM = Nothing
+            , lastInputPM = Just { pm | id = TempId }
+          }
+            |> pmModelEncoder
+            |> storePMModel
+        , getResultAfter msg 0
+        ]
+
+
+defaultData : Data
+defaultData =
+    { sites = defaultSites
+    , pmModels = []
+    }
+
+
+defaultSites : Sites
+defaultSites =
     { list = []
     , selected = Nothing
     , newSiteName = ""
@@ -74,9 +183,12 @@ application config =
             flags
                 |> Maybe.andThen
                     (\v ->
-                        Decode.decodeValue Decode.string v
-                            |> Result.andThen (Decode.decodeString storageDecoder)
-                            |> Result.toMaybe
+                        let
+                            res =
+                                Decode.decodeValue Decode.string v
+                                    |> Result.andThen (Decode.decodeString storageDecoder)
+                        in
+                        Debug.log "flags parsed" res |> Result.toMaybe
                     )
                 |> config.init
     in
@@ -88,10 +200,9 @@ application config =
         }
 
 
-decodeFromChange : Value -> Maybe Data
+decodeFromChange : Value -> Result Decode.Error Data
 decodeFromChange val =
     Decode.decodeValue storageDecoder val
-        |> Result.toMaybe
 
 
 storageDecoder : Decoder Data
@@ -118,15 +229,6 @@ siteDecoder =
     Decode.map2 Site
         (Decode.field "id" Decode.int)
         (Decode.field "name" Decode.string)
-
-
-loadPMDataOfSite : (PMModel -> msg) -> Int -> List PMModel -> Cmd msg
-loadPMDataOfSite msg siteId list =
-    List.filter (\p -> p.siteId == siteId) list
-        |> List.head
-        |> Maybe.withDefault (defaultPM siteId)
-        |> Task.succeed
-        |> Task.perform msg
 
 
 defaultPM : Int -> PMModel
@@ -242,7 +344,11 @@ pmModelEncoder model =
     in
     Encode.object
         [ ( "pmList", pmList )
-        , ( "players", players )
+        , ( "playerList", players )
+        , ( "siteId", Encode.int model.siteId )
+        , ( "editingPM", Encode.null )
+        , ( "selectedPMId", Encode.null )
+        , ( "lastInputPM", Encode.null )
         ]
 
 
@@ -281,6 +387,6 @@ pmModelDecoder =
         (Decode.field "siteId" Decode.int)
         (Decode.field "pmList" (Decode.list pmDecoder))
         (Decode.field "playerList" (Decode.list playerDecoder))
-        (Decode.maybe (Decode.field "editimgPM" pmDecoder))
+        (Decode.maybe (Decode.field "editingPM" pmDecoder))
         (Decode.maybe (Decode.field "selectedPMId" Decode.string |> idDecoder))
         (Decode.maybe (Decode.field "lastInputPM" pmDecoder))

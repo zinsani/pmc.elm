@@ -1,39 +1,67 @@
 import { Elm } from "./Main.elm";
 
 const STORAGE_KEY = "__PMC__";
+function getStoredData() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY));
+}
+
 const flags = localStorage.getItem(STORAGE_KEY);
+console.log(JSON.parse(flags));
+
 const app = Elm.Main.init({ flags });
 
-app.ports.storeCache.subscribe(function (val) {
-  if (val === null) {
-    localStorage.removeItem(STORAGE_KEY);
-  } else {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(val));
-  }
+app.ports.storeData.subscribe(function (data) {
+  const current = getStoredData();
+  const newVal = current
+    ? {
+        ...current,
+        ...data
+      }
+    : data;
 
-  console.log("storeCache called", val);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+});
 
-  // Report that the new session was stored successfully.
+app.ports.storeSites.subscribe(function (sites) {
+  const current = getStoredData();
+  const newVal = {
+    ...current,
+    sites,
+    pmModels: current.pmModels || []
+  };
+  console.log("storeSites", sites);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+});
+
+app.ports.fetch.subscribe(function () {
+  const val = getStoredData();
+
+  // Report that the new pmModels was stored successfully.
   setTimeout(function () {
-    console.log("onStoreChange called", val);
+    console.log("fetch", val);
     app.ports.onStoreChange.send(val);
   }, 0);
 });
 
-app.ports.storePMModels?.subscribe(function (val) {
-  if (val === null) {
-    localStorage.removeItem(STORAGE_KEY);
-  } else {
-    const current = localStorage.getItem(STORAGE_KEY);
-    const newVal = JSON.stringify({ ...JSON.parse(current), pmModels: val });
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
-  }
-
-  // Report that the new session was stored successfully.
-  setTimeout(function () {
-    app.ports.onStoreChange.send(val);
-  }, 0);
+app.ports.storePMModels?.subscribe(function (pmModels) {
+  const current = getStoredData();
+  const newVal = { ...current, pmModels };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
+
+app.ports.storePMModel?.subscribe(function (pmModel) {
+  const current = getStoredData();
+  const found = current.pmModels?.find(pm => pm.siteId == pmModel.siteId);
+
+  console.log("storePMModel: found", found);
+  const pmModels = found
+    ? current.pmModels.map(md => (md.siteId === pmModel.siteId ? pmModel : md))
+    : [...(current.pmModels ?? []), pmModel];
+
+  const newVal = { ...current, pmModels };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+});
+
 // Whenever localStorage changes in another tab, report it if necessary.
 window.addEventListener(
   "storage",

@@ -1,6 +1,5 @@
 module Types exposing (..)
 
-import Json.Decode as Decode
 import Random
 import UUID
 
@@ -25,8 +24,24 @@ type alias Site =
 
 
 type Model
-    = SiteListPage Data
+    = SiteListPage Sites
     | MainPage PMModel
+    | Fetching FetchingModel
+
+
+type FetchingModel
+    = FetchingSiteList
+    | FetchingSite Int
+    | FetchingErr String
+    | UpdatingSiteList
+    | UpdatingSite Int
+
+
+
+-- = SucceedWithSites Sites
+-- | SucceedWithPMList (List PlayerManager)
+-- | FailWithSites String
+-- | FailWithPMList String
 
 
 type SiteListMsg
@@ -41,11 +56,18 @@ type SiteListMsg
     | ToggleSaveSelection Bool
 
 
+type FetchingMsg
+    = FetchingSites
+    | FetchedSites Sites
+    | FetchingPMModel
+    | FetchedPMModel (Maybe PMModel)
+    | FetchingError String
+
+
 type Msg
     = SiteListMsg SiteListMsg
-    | OpenSite PMModel
-    | UpdateData (Maybe Data)
     | PMMsg PMMsg
+    | FetchingMsg FetchingMsg
 
 
 type Id
@@ -103,14 +125,11 @@ type alias PMModel =
 
 
 type PMMsg
-    = SelectPM Id
-    | SelectPlayer Id
-    | ClickNewPlayerManager
-    | AddNewPlayerManager PlayerManager
+    = ClickNewPlayerManager
+      -- | AddNewPlayerManager PlayerManager
     | ClickNewPlayer
     | ClickSubmit
     | ClickCancel
     | InputPMName String
     | InputPName String
-    | GotStoreChanged PMModel
-    | GotErrWhenParsing Decode.Error
+    | BackToSiteList

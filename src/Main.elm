@@ -1,153 +1,122 @@
 module Main exposing (main)
 
-import Api
+import Api exposing (defaultPM)
 import Bulma.Classes as Bulma
-import Html exposing (Html, div, node)
-import Html.Attributes exposing (class, href, rel, selected, value)
-import Json.Decode exposing (Value)
+import Html exposing (Html, div, node, text)
+import Html.Attributes exposing (class, href, rel, value)
+import Json.Decode as Decode exposing (Value)
 import MDView
 import Site
-import Types exposing (Data, Model(..), Msg(..), PMMsg, Site, SiteListMsg(..), Sites)
+import Types exposing (Data, FetchingModel(..), FetchingMsg(..), Model(..), Msg(..), PMMsg(..), SiteListMsg(..))
 
 
 init : Maybe Data -> ( Model, Cmd Msg )
 init storedData =
     case storedData of
         Nothing ->
-            let
-                _ =
-                    Debug.log "Nothing stored yet"
-            in
-            ( SiteListPage { sites = Api.emptySiteData, pmModels = [] }, Cmd.none )
+            ( Fetching UpdatingSiteList, Api.initialize FetchingSites |> Cmd.map FetchingMsg )
 
         Just data ->
-            let
-                defaultSiteModel =
-                    Debug.log "defaultSiteModel" SiteListPage data
-            in
             case ( data.sites, data.sites.selected ) of
                 ( _, Nothing ) ->
-                    ( defaultSiteModel, Cmd.none )
+                    ( SiteListPage data.sites, Cmd.none )
 
                 ( _, Just siteId ) ->
-                    ( defaultSiteModel, Api.loadPMDataOfSite OpenSite siteId data.pmModels )
+                    let
+                        selectedPMModel =
+                            List.filter (\pm -> pm.siteId == siteId) data.pmModels
+                                |> List.head
+                                |> Maybe.withDefault (defaultPM siteId)
+                    in
+                    ( MainPage selectedPMModel, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Api.onStoreChange (\value -> UpdateData <| Api.decodeFromChange value)
+subscriptions model =
+    let
+        maybeSiteId =
+            case model of
+                Fetching data ->
+                    case data of
+                        FetchingSite siteId ->
+                            Just siteId
+
+                        _ ->
+                            Nothing
+
+                _ ->
+                    Nothing
+    in
+    Api.onStoreChange
+        (handleFetchedData maybeSiteId)
+
+
+handleFetchedData : Maybe Int -> Value -> Msg
+handleFetchedData maybeSiteId value =
+    let
+        fetchedData =
+            Api.decodeFromChange value
+    in
+    case fetchedData of
+        Ok data ->
+            case maybeSiteId of
+                Nothing ->
+                    FetchedSites data.sites |> FetchingMsg
+
+                Just siteId ->
+                    (List.filter (\pm -> pm.siteId == siteId) data.pmModels |> List.head)
+                        |> FetchedPMModel
+                        |> FetchingMsg
+
+        Err err ->
+            FetchingMsg (FetchingError (Decode.errorToString err))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( SiteListPage _, UpdateData newData ) ->
-            case Debug.log "newData" newData of
-                Just newDataFound ->
-                    ( SiteListPage newDataFound, Cmd.none )
+        ( Fetching fetchingModel, FetchingMsg fetchingMsg ) ->
+            updateFetching fetchingMsg fetchingModel
 
-                Nothing ->
-                    ( model, Cmd.none )
-
-        ( SiteListPage data, SiteListMsg slmsg ) ->
-            let
-                ( siteModel, slMsg ) =
-                    updateSiteListMsg data slmsg
-            in
-            ( SiteListPage siteModel, slMsg )
-
-        ( _, OpenSite newPMModel ) ->
-            ( MainPage newPMModel, Cmd.none )
+        ( SiteListPage sites, SiteListMsg slmsg ) ->
+            Site.update slmsg sites
 
         ( MainPage mainModel, PMMsg mdvMsg ) ->
-            let
-                ( newModel, cmd ) =
-                    MDView.update mdvMsg mainModel
-            in
-            ( MainPage newModel, Cmd.map PMMsg cmd )
+            MDView.update mdvMsg mainModel
 
         ( _, _ ) ->
             ( model, Cmd.none )
 
 
-updateSiteListMsg : Data -> SiteListMsg -> ( Data, Cmd Msg )
-updateSiteListMsg data slmsg =
-    let
-        sites =
-            data.sites
+updateFetching : FetchingMsg -> FetchingModel -> ( Model, Cmd Msg )
+updateFetching msg model =
+    case ( model, msg ) of
+        ( UpdatingSiteList, _ ) ->
+            ( Fetching FetchingSiteList, Api.fetch () )
 
-        ( newSites, cmd ) =
-            case slmsg of
-                InputSiteName siteName ->
-                    ( { sites | newSiteName = siteName }, Cmd.none )
+        ( UpdatingSite siteId, m ) ->
+            let
+                _ =
+                    Debug.log "UpdatingSitemsg" m
+            in
+            ( Fetching (FetchingSite siteId), Api.fetch () )
 
-                ClickNewSite siteName ->
-                    ( sites, Api.createNewSite siteName data )
+        ( FetchingSiteList, FetchedSites sites ) ->
+            ( SiteListPage sites, Cmd.none )
 
-                StartEditSite id ->
-                    let
-                        editingSite =
-                            List.filter (\s -> s.id == id) sites.list
-                                |> List.head
-                    in
-                    ( { sites | editingSite = editingSite }, Cmd.none )
+        ( FetchingSite _, FetchedPMModel maybeNewPMModel ) ->
+            case Debug.log "maybeNewPMModel" maybeNewPMModel of
+                Just newPMModel ->
+                    ( MainPage newPMModel, Cmd.none )
 
-                EditingSiteName modifiedName ->
-                    case sites.editingSite of
-                        Nothing ->
-                            ( sites, Cmd.none )
+                Nothing ->
+                    ( Fetching (FetchingErr "PM Model is not found"), Cmd.none )
 
-                        Just modified ->
-                            let
-                                newSite =
-                                    { modified | name = modifiedName }
-                            in
-                            ( { sites | editingSite = Just newSite }
-                            , Cmd.none
-                            )
+        ( FetchingErr err, _ ) ->
+            ( Fetching (FetchingErr err), Cmd.none )
 
-                EndEditSite modified ->
-                    let
-                        newList =
-                            List.map
-                                (\s ->
-                                    if s.id == modified.id then
-                                        modified
-
-                                    else
-                                        s
-                                )
-                                sites.list
-                    in
-                    ( { sites | editingSite = Nothing, list = newList }, Cmd.none )
-
-                ToggleSaveSelection save ->
-                    ( { sites | saveSelection = save }, Cmd.none )
-
-                ClickOpenSite siteId ->
-                    let
-                        selected : Maybe Site
-                        selected =
-                            List.filter (\s -> s.id == siteId) sites.list
-                                |> List.head
-
-                        newSite : Sites
-                        newSite =
-                            if sites.saveSelection then
-                                { sites
-                                    | selected = Maybe.map (\s -> s.id) selected
-                                }
-
-                            else
-                                sites
-                    in
-                    -- ( newSite, openSite foundSelected )
-                    ( newSite, Api.loadPMDataOfSite OpenSite siteId data.pmModels )
-
-                ClickDeleteSite siteId ->
-                    ( { sites | list = List.filter (\s -> not <| s.id == siteId) sites.list }, Cmd.none )
-    in
-    ( { data | sites = newSites }, cmd )
+        ( _, _ ) ->
+            ( Fetching model, Cmd.none )
 
 
 view : Model -> { title : String, body : List (Html Msg) }
@@ -156,12 +125,24 @@ view model =
         content =
             case model of
                 SiteListPage data ->
-                    Site.viewSiteList data.sites
+                    Site.view data
                         |> Html.map SiteListMsg
 
                 MainPage mdvm ->
                     MDView.view mdvm
                         |> Html.map PMMsg
+
+                Fetching fetchingState ->
+                    div [ class Bulma.container ]
+                        [ div [ class Bulma.hasTextCentered ]
+                            [ case fetchingState of
+                                FetchingErr err ->
+                                    text err
+
+                                _ ->
+                                    text "..."
+                            ]
+                        ]
 
         stylesheetBulma : Html msg
         stylesheetBulma =

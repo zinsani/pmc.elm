@@ -1,15 +1,16 @@
 module Site exposing (..)
 
+import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, input, label, span, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (checked, class, hidden, placeholder, style, type_, value)
 import Html.Events exposing (onBlur, onCheck, onClick, onDoubleClick, onInput)
-import Types exposing (Site, SiteListMsg(..), Sites)
+import Types exposing (FetchingModel(..), FetchingMsg(..), Model(..), Msg(..), Site, SiteListMsg(..), Sites)
 
 
-viewSiteList : Sites -> Html SiteListMsg
-viewSiteList model =
+view : Sites -> Html SiteListMsg
+view model =
     div [ class Bulma.container ]
         [ div [ classList [ Bulma.columns, Bulma.isCentered ] ]
             [ div [ classList [ Bulma.column, Bulma.box, Bulma.isHalf ] ]
@@ -70,17 +71,17 @@ viewContent model =
                         ]
                     ]
                 , List.sortBy .id model.list
-                    |> List.map
+                    |> List.indexedMap
                         (viewSite model.editingSite)
                     |> tbody []
                 ]
             ]
 
 
-viewSite : Maybe Site -> Site -> Html SiteListMsg
-viewSite editingSite site =
+viewSite : Maybe Site -> Int -> Site -> Html SiteListMsg
+viewSite editingSite num site =
     tr []
-        [ td [ class Bulma.hasTextCentered ] [ text <| String.fromInt site.id ]
+        [ td [ class Bulma.hasTextCentered ] [ text <| String.fromInt (num + 1) ]
         , viewSiteName editingSite site
         , td [ class Bulma.hasTextCentered ]
             [ div [ class Bulma.field ]
@@ -115,7 +116,7 @@ viewSiteName editingSite site =
 
         Just editing ->
             if editing.id == site.id then
-                viewEditingSiteName site
+                viewEditingSiteName editing
 
             else
                 viewNotEditingSiteName site
@@ -145,3 +146,70 @@ viewNotEditingSiteName site =
 viewNormalSiteName : Site -> Html SiteListMsg
 viewNormalSiteName site =
     td [ onDoubleClick <| StartEditSite site.id ] [ span [] [ text site.name ] ]
+
+
+update : SiteListMsg -> Sites -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        InputSiteName siteName ->
+            ( SiteListPage { model | newSiteName = siteName }, Cmd.none )
+
+        ClickNewSite siteName ->
+            ( Fetching UpdatingSiteList
+            , Api.createNewSite FetchingSites siteName model
+                |> Cmd.map FetchingMsg
+            )
+
+        StartEditSite id ->
+            let
+                editingSite =
+                    List.filter (\s -> s.id == id) model.list
+                        |> List.head
+            in
+            ( SiteListPage { model | editingSite = editingSite }, Cmd.none )
+
+        EditingSiteName modifiedName ->
+            let
+                newSite =
+                    model.editingSite
+                        |> Maybe.andThen (\editingSite -> Just { editingSite | name = modifiedName })
+            in
+            ( SiteListPage { model | editingSite = newSite }
+            , Cmd.none
+            )
+
+        EndEditSite modified ->
+            ( Fetching UpdatingSiteList
+            , Api.modifySiteList
+                FetchingSites
+                (model.list
+                    |> List.map
+                        (\s ->
+                            if s.id == modified.id then
+                                modified
+
+                            else
+                                s
+                        )
+                )
+                model
+                |> Cmd.map FetchingMsg
+            )
+
+        ToggleSaveSelection save ->
+            ( SiteListPage { model | saveSelection = save }, Cmd.none )
+
+        ClickOpenSite siteId ->
+            ( Fetching (UpdatingSite siteId)
+            , Api.selectSite FetchingPMModel siteId model
+                |> Cmd.map FetchingMsg
+            )
+
+        ClickDeleteSite siteId ->
+            ( Fetching UpdatingSiteList
+            , Api.modifySiteList
+                FetchingSites
+                (model.list |> List.filter (\s -> not <| s.id == siteId))
+                model
+                |> Cmd.map FetchingMsg
+            )
