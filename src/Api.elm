@@ -5,7 +5,7 @@ import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import Process
 import Task
-import Types exposing (Data, Id(..), PMModel, Player, PlayerManager, Site, Sites, createId, idSeed, idToString)
+import Types exposing (Data, Id(..), PMModel, Player, PlayerManager, PlayerOptions, Site, Sites, createId, idSeed, idToString)
 
 
 port fetch : () -> Cmd msg
@@ -60,7 +60,7 @@ createNewSite msg siteName sites =
         [ { sites | list = newList }
             |> sitesEncoder
             |> storeSites
-        , defaultPM newId
+        , defaultPMModel newId
             |> pmModelEncoder
             |> storePMModel
         , getResultAfter msg 10
@@ -231,14 +231,27 @@ siteDecoder =
         (Decode.field "name" Decode.string)
 
 
-defaultPM : Int -> PMModel
-defaultPM siteId =
+defaultPMModel : Int -> PMModel
+defaultPMModel siteId =
     { pmList = []
     , playerList = []
     , lastInputPM = Nothing
     , editingPM = Nothing
     , selectedPMId = Nothing
     , siteId = siteId
+    }
+
+
+defaultPlayerManager : PlayerManager
+defaultPlayerManager =
+    { id = TempId
+    , name = "New PC"
+    , timeoutSecondsToStartup = 0
+    , minimize = True
+    , sourcePath = "\\\\pmc-pc"
+    , ipaddress = "192.168.100.1"
+    , port_ = 11020
+    , players = []
     }
 
 
@@ -257,13 +270,53 @@ pmEncoder pm =
     Encode.object
         [ ( "id", idEncoder pm.id )
         , ( "name", Encode.string pm.name )
+        , ( "timeoutSecondsToStartup", Encode.float pm.timeoutSecondsToStartup )
+        , ( "minimize", Encode.bool pm.minimize )
+        , ( "sourcePath", Encode.string pm.sourcePath )
+        , ( "ipaddress", Encode.string pm.ipaddress )
+        , ( "port", Encode.int pm.port_ )
+        , ( "players", Encode.list playerEncoder pm.players )
         ]
 
 
 playerEncoder : Player -> Value
 playerEncoder p =
     Encode.object
-        [ ( "name", Encode.string p.name ) ]
+        [ ( "id", idEncoder p.id )
+        , ( "name", Encode.string p.name )
+        , ( "parentId", idEncoder p.parentId )
+        , ( "directory", Encode.string p.directory )
+        , ( "exeFileName"
+          , p.exeFileName
+                |> Maybe.map (\exe -> Encode.string exe)
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "sourceDir", Encode.string p.sourceDir )
+        , ( "options", playerOptionsEncoder p.options )
+        ]
+
+
+playerOptionsEncoder : PlayerOptions -> Value
+playerOptionsEncoder options =
+    Encode.object
+        [ ( "parameters"
+          , options.parameters
+                |> Maybe.map (\p -> Encode.string p)
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "delaySecondsToStart", Encode.float options.delaySecondsToStart )
+        , ( "watchDogEnabled", Encode.bool options.watchDogEnabled )
+        , ( "excludeFiles"
+          , options.excludeFiles
+                |> Maybe.map (\f -> Encode.list Encode.string f)
+                |> Maybe.withDefault Encode.null
+          )
+        , ( "excludeDirectories"
+          , options.excludeDirectories
+                |> Maybe.map (\f -> Encode.list Encode.string f)
+                |> Maybe.withDefault Encode.null
+          )
+        ]
 
 
 defaultModelJson : Value
@@ -315,31 +368,14 @@ siteEncoder site =
 pmModelEncoder : PMModel -> Encode.Value
 pmModelEncoder model =
     let
-        cvtPM : PlayerManager -> Encode.Value
-        cvtPM =
-            \pm ->
-                Encode.object
-                    [ ( "id", Encode.string <| idToString pm.id )
-                    , ( "name", Encode.string pm.name )
-                    ]
-
         pmList =
             Encode.list
-                cvtPM
+                pmEncoder
                 model.pmList
-
-        cvtPlayer : Player -> Encode.Value
-        cvtPlayer =
-            \p ->
-                Encode.object
-                    [ ( "id", Encode.string <| idToString p.id )
-                    , ( "name", Encode.string p.name )
-                    , ( "parentId", Encode.string <| idToString p.id )
-                    ]
 
         players =
             Encode.list
-                cvtPlayer
+                playerEncoder
                 model.playerList
     in
     Encode.object
@@ -366,19 +402,36 @@ idDecoder =
 
 pmDecoder : Decoder PlayerManager
 pmDecoder =
-    Decode.map2
+    Decode.map8
         PlayerManager
         (Decode.field "id" Decode.string |> idDecoder)
         (Decode.field "name" Decode.string)
+        (Decode.field "timeoutSecondsToStartup" Decode.float)
+        (Decode.field "minimize" Decode.bool)
+        (Decode.field "sourcePath" Decode.string)
+        (Decode.field "ipaddress" Decode.string)
+        (Decode.field "port" Decode.int)
+        (Decode.field "players" (Decode.list playerDecoder))
 
 
 playerDecoder : Decoder Player
 playerDecoder =
-    Decode.map3
+    Decode.map7
         Player
         (Decode.field "id" Decode.string |> idDecoder)
         (Decode.field "name" Decode.string)
         (Decode.field "parentId" Decode.string |> idDecoder)
+        (Decode.field "directory" Decode.string)
+        (Decode.maybe (Decode.field "exeFileName" Decode.string))
+        (Decode.field "sourceDir" Decode.string)
+        (Decode.map6 PlayerOptions
+            (Decode.maybe (Decode.field "parameters" Decode.string))
+            (Decode.field "delaySecondsToStart" Decode.float)
+            (Decode.field "watchDogEnabled" Decode.bool)
+            (Decode.maybe (Decode.field "excludeFiles" (Decode.list Decode.string)))
+            (Decode.maybe (Decode.field "excludeDirectories" (Decode.list Decode.string)))
+            (Decode.maybe (Decode.field "logDir" Decode.string))
+        )
 
 
 pmModelDecoder : Decoder PMModel

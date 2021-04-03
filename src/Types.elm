@@ -104,6 +104,12 @@ createId seed =
 type alias PlayerManager =
     { id : Id
     , name : String
+    , timeoutSecondsToStartup : Float
+    , minimize : Bool
+    , sourcePath : String
+    , ipaddress : String
+    , port_ : Int
+    , players : List Player
     }
 
 
@@ -111,6 +117,20 @@ type alias Player =
     { id : Id
     , name : String
     , parentId : Id
+    , directory : String
+    , exeFileName : Maybe String
+    , sourceDir : String
+    , options : PlayerOptions
+    }
+
+
+type alias PlayerOptions =
+    { parameters : Maybe String
+    , delaySecondsToStart : Float
+    , watchDogEnabled : Bool
+    , excludeFiles : Maybe (List String)
+    , excludeDirectories : Maybe (List String)
+    , logDir : Maybe String
     }
 
 

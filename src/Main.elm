@@ -1,6 +1,6 @@
 module Main exposing (main)
 
-import Api exposing (defaultPM)
+import Api exposing (defaultPMModel)
 import Bulma.Classes as Bulma
 import Html exposing (Html, div, node, text)
 import Html.Attributes exposing (class, href, rel, value)
@@ -26,7 +26,7 @@ init storedData =
                         selectedPMModel =
                             List.filter (\pm -> pm.siteId == siteId) data.pmModels
                                 |> List.head
-                                |> Maybe.withDefault (defaultPM siteId)
+                                |> Maybe.withDefault (defaultPMModel siteId)
                     in
                     ( MainPage selectedPMModel, Cmd.none )
 

@@ -1,24 +1,17 @@
 module MDView exposing (storeModel, subscriptions, update, view)
 
-import Api exposing (pmModelEncoder)
+import Api exposing (defaultPlayerManager, pmModelEncoder)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, h1, i, input, label, section, span, text)
-import Html.Attributes exposing (class, type_, value)
+import Html exposing (Html, button, div, h1, i, input, label, section, span, table, tbody, td, text, thead, tr)
+import Html.Attributes exposing (class, style, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Types exposing (FetchingModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), PMModel, PMMsg(..), PlayerManager)
+import Types exposing (FetchingModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), PMModel, PMMsg(..), Player, PlayerManager)
 
 
 subscriptions : PMModel -> Sub PMMsg
 subscriptions _ =
     Sub.none
-
-
-defaultPM : PlayerManager
-defaultPM =
-    { id = TempId
-    , name = "PC-0"
-    }
 
 
 update : PMMsg -> PMModel -> ( Model, Cmd Msg )
@@ -35,7 +28,7 @@ update msg model =
 
                         Nothing ->
                             Debug.log "AddNewPlayerManager:: new"
-                                defaultPM
+                                defaultPlayerManager
             in
             ( MainPage { model | editingPM = Just editingPM }, Cmd.none )
 
@@ -47,7 +40,7 @@ update msg model =
                             Just (Debug.log "editingPM" { pm | name = name })
 
                         Nothing ->
-                            Just defaultPM
+                            Just defaultPlayerManager
             in
             ( MainPage { model | editingPM = editingPM }, Cmd.none )
 
@@ -113,20 +106,50 @@ view : PMModel -> Html PMMsg
 view model =
     case model.editingPM of
         Just editingPM ->
-            section [ class Bulma.section ]
+            div [ class Bulma.container ]
                 [ viewActionBar
-                , viewPMEdit editingPM
+                , section [ class Bulma.section ]
+                    [ viewPMEdit editingPM
+                    ]
                 ]
 
         Nothing ->
-            section [ class Bulma.section ]
+            div [ class Bulma.container ]
                 [ viewActionBar
-                , viewPMList model
+                , section [ class Bulma.section ]
+                    [ viewPMList model ]
                 ]
 
 
 viewActionBar : Html PMMsg
 viewActionBar =
+    let
+        viewTitle =
+            span [ class Bulma.isSize4 ]
+                [ text "Player Manager Client"
+                ]
+
+        settingButton : Html msg
+        settingButton =
+            button
+                [ classList
+                    [ Bulma.button
+                    , "is-pulled-right"
+                    ]
+                ]
+                [ span
+                    [ class Bulma.icon
+                    ]
+                    [ i
+                        [ classList
+                            [ Bulma.fa
+                            , "fa-cog"
+                            ]
+                        ]
+                        []
+                    ]
+                ]
+    in
     div
         [ classList
             [ Bulma.columns
@@ -140,75 +163,111 @@ viewActionBar =
                 , Bulma.hasBackgroundLight
                 ]
             ]
-            [ div [ class Bulma.isSize4 ]
-                [ button
-                    [ classList [ Bulma.button, Bulma.isRounded, Bulma.isLight, Bulma.mr4 ]
-                    , onClick BackToSiteList
-                    ]
-                    [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
-                        [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
-                    ]
-                , text "Player Manager Client"
-                ]
-            , div
-                [ classList
-                    [ Bulma.block
-                    , "is-pulled-right"
-                    ]
-                ]
-                [ button
-                    [ classList
-                        [ Bulma.button
-                        ]
-                    ]
-                    [ span
-                        [ class Bulma.icon
-                        ]
-                        [ i
-                            [ classList
-                                [ Bulma.fa
-                                , "fa-cog"
-                                ]
-                            ]
-                            []
-                        ]
-                    ]
-                ]
+            [ backButton BackToSiteList
+            , viewTitle
+            , settingButton
             ]
+        ]
+
+
+backButton : msg -> Html msg
+backButton msg =
+    button
+        [ classList [ Bulma.button, Bulma.isRounded, Bulma.isLight, Bulma.mr4 ]
+        , onClick msg
+        ]
+        [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
+            [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
         ]
 
 
 viewPMList : PMModel -> Html PMMsg
 viewPMList model =
+    let
+        addNewButton =
+            addButton ClickNewPlayerManager "Add"
+    in
     case List.length model.pmList of
         0 ->
             div [ class Bulma.container ]
-                [ addButton ClickNewPlayerManager "Add"
+                [ addNewButton
                 ]
 
         _ ->
-            div [ class Bulma.columns ]
-                [ List.map
-                    viewPlayerManager
-                    model.pmList
-                    |> (\pmList -> List.append pmList [ addButton ClickNewPlayerManager "Add" ])
-                    |> div
-                        [ classList
-                            [ Bulma.column
-                            , Bulma.is3DesktopOnly
-                            ]
+            div [ class Bulma.container ]
+                [ div
+                    [ classList
+                        [ Bulma.block
                         ]
-                , div [ class Bulma.column ]
-                    (viewPlayerList model)
+                    ]
+                    [ addNewButton
+                    , table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
+                        [ thead []
+                            [ td [] [ text "No." ]
+                            , td [ style "width" "35%" ] [ text "Name" ]
+                            , td [ style "width" "35%" ] [ text "Location" ]
+                            , td [ style "width" "25%" ] [ text "Controls" ]
+                            ]
+                        , tbody []
+                            (model.pmList
+                                |> List.indexedMap
+                                    viewPlayerManager
+                            )
+                        ]
+                    ]
+                , div [ class Bulma.block ]
+                    (viewPlayerList
+                        model
+                    )
                 ]
 
 
-viewPlayerManager : PlayerManager -> Html msg
-viewPlayerManager pm =
-    div
-        []
-        [ h1 [ class Bulma.title ]
-            [ text <| pm.name ]
+viewPlayerManager : Int -> PlayerManager -> Html msg
+viewPlayerManager index pm =
+    tr []
+        [ td []
+            [ span [ class Bulma.isSize6 ]
+                [ 1 + index |> String.fromInt |> text ]
+            ]
+        , td []
+            [ span [ class Bulma.isSize6 ]
+                [ text pm.name ]
+            ]
+        , td []
+            [ span [ class Bulma.isSize6 ]
+                [ pm.ipaddress ++ ":" ++ String.fromInt pm.port_ |> text ]
+            ]
+        , td []
+            [ pmControlButtonGroup pm
+            ]
+        ]
+
+
+pmControlButtonGroup : PlayerManager -> Html msg
+pmControlButtonGroup pm =
+    div [ class Bulma.columns ]
+        [ div [ classList [ Bulma.column, Bulma.buttons, Bulma.hasAddons, Bulma.mb0 ] ]
+            [ button [ classList [ Bulma.button, Bulma.isSmall ] ]
+                [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
+            , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+                [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
+                    [ i [ class "fa fa-stop" ] [] ]
+                ]
+            , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+                [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
+                    [ i [ class "fa fa-play" ] [] ]
+                ]
+            , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+                [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
+                    [ i [ class "fa fa-upload" ] [] ]
+                ]
+            ]
+        , div [ classList [ Bulma.column, Bulma.isNarrow ] ]
+            [ button [ classList [ Bulma.isPulledRight, Bulma.button, Bulma.isSmall, Bulma.isWhite ] ]
+                [ span [ classList [ Bulma.icon ] ]
+                    [ i [ class "fa fa-chevron-right" ] [] ]
+                ]
+            ]
         ]
 
 
@@ -273,5 +332,25 @@ inputText label_ value_ msg =
                 , value value_
                 ]
                 []
+            ]
+        ]
+
+
+playerControlButtonGroup : Player -> Html msg
+playerControlButtonGroup player =
+    div [ classList [ Bulma.buttons, Bulma.hasAddons ] ]
+        [ button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
+            [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
+        , button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
+                [ i [ class "fa fa-stop" ] [] ]
+            ]
+        , button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
+                [ i [ class "fa fa-play" ] [] ]
+            ]
+        , button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
+                [ i [ class "fa fa-upload" ] [] ]
             ]
         ]
