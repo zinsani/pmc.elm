@@ -1,11 +1,24 @@
 port module Api exposing (..)
 
 import Browser
+import Hashids exposing (encodeUsingSalt)
 import Json.Decode as Decode exposing (Decoder)
 import Json.Encode as Encode exposing (Value)
 import Process
 import Task
-import Types exposing (Data, Id(..), PMModel, Player, PlayerManager, PlayerOptions, Site, Sites, createId, idSeed, idToString)
+import Time
+import Types
+    exposing
+        ( Data
+        , Id(..)
+        , PMModel
+        , Player
+        , PlayerManager
+        , PlayerOptions
+        , Site
+        , Sites
+        , idToString
+        )
 
 
 port fetch : () -> Cmd msg
@@ -111,26 +124,28 @@ modifySiteList msg modified sites =
         ]
 
 
-createIdIfNecessary : { a | id : Id } -> { a | id : Id }
-createIdIfNecessary obj =
-    if obj.id == TempId then
-        { obj | id = Id <| createId idSeed }
+createId : (Id -> msg) -> Cmd msg
+createId msg =
+    let
+        salt =
+            "zinsani"
 
-    else
-        obj
+        handler msg_ posix =
+            Time.posixToMillis posix
+                |> encodeUsingSalt salt
+                |> Id
+                |> msg_
+    in
+    Task.perform (handler msg) Time.now
 
 
 createNewPM : msg -> PlayerManager -> PMModel -> Cmd msg
-createNewPM msg newPM model =
-    let
-        pm =
-            createIdIfNecessary newPM
-    in
+createNewPM msg pm model =
     Cmd.batch
         [ { model
             | pmList = model.pmList ++ [ pm ]
             , editingPM = Nothing
-            , lastInputPM = Just newPM
+            , lastInputPM = Just pm
           }
             |> pmModelEncoder
             |> storePMModel
@@ -145,6 +160,34 @@ modifyPMList msg modifiedList pm model =
             | pmList = modifiedList
             , editingPM = Nothing
             , lastInputPM = Just { pm | id = TempId }
+          }
+            |> pmModelEncoder
+            |> storePMModel
+        , getResultAfter msg 0
+        ]
+
+
+deletePM : msg -> Id -> PMModel -> Cmd msg
+deletePM msg pmId model =
+    let
+        _ =
+            pmId |> Debug.log "deletingPMId"
+
+        newPMList =
+            model.pmList
+                |> List.filter
+                    (\p ->
+                        let
+                            _ =
+                                Debug.log "id" p.id
+                        in
+                        p.id /= pmId
+                    )
+                |> Debug.log "remaining pmList"
+    in
+    Cmd.batch
+        [ { model
+            | pmList = newPMList
           }
             |> pmModelEncoder
             |> storePMModel
@@ -239,6 +282,7 @@ defaultPMModel siteId =
     , editingPM = Nothing
     , selectedPMId = Nothing
     , siteId = siteId
+    , listEditing = False
     }
 
 
@@ -385,6 +429,7 @@ pmModelEncoder model =
         , ( "editingPM", Encode.null )
         , ( "selectedPMId", Encode.null )
         , ( "lastInputPM", Encode.null )
+        , ( "listEditing", Encode.bool False )
         ]
 
 
@@ -436,10 +481,11 @@ playerDecoder =
 
 pmModelDecoder : Decoder PMModel
 pmModelDecoder =
-    Decode.map6 PMModel
+    Decode.map7 PMModel
         (Decode.field "siteId" Decode.int)
         (Decode.field "pmList" (Decode.list pmDecoder))
         (Decode.field "playerList" (Decode.list playerDecoder))
         (Decode.maybe (Decode.field "editingPM" pmDecoder))
         (Decode.maybe (Decode.field "selectedPMId" Decode.string |> idDecoder))
         (Decode.maybe (Decode.field "lastInputPM" pmDecoder))
+        (Decode.field "listEditing" Decode.bool)

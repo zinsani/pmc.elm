@@ -1,7 +1,6 @@
 module Types exposing (..)
 
 import Random
-import UUID
 
 
 type alias Data =
@@ -75,6 +74,10 @@ type Id
     | TempId
 
 
+type PortErr
+    = PortErr String
+
+
 idToString : Id -> String
 idToString id =
     case id of
@@ -83,18 +86,6 @@ idToString id =
 
         TempId ->
             "temp"
-
-
-idSeed : Random.Seed
-idSeed =
-    Random.initialSeed 999
-
-
-createId : Random.Seed -> String
-createId seed =
-    Random.step UUID.generator seed
-        |> Tuple.first
-        |> UUID.toRepresentation UUID.Urn
 
 
 
@@ -141,15 +132,18 @@ type alias PMModel =
     , editingPM : Maybe PlayerManager
     , selectedPMId : Maybe Id
     , lastInputPM : Maybe PlayerManager
+    , listEditing : Bool
     }
 
 
 type PMMsg
     = ClickNewPlayerManager
-      -- | AddNewPlayerManager PlayerManager
     | ClickNewPlayer
     | ClickSubmit
     | ClickCancel
+    | ClickDeletePM Id
     | InputPMName String
     | InputPName String
     | BackToSiteList
+    | ToggleEditMode
+    | GotNewId Id

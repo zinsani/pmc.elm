@@ -3,7 +3,7 @@ module MDView exposing (storeModel, subscriptions, update, view)
 import Api exposing (defaultPlayerManager, pmModelEncoder)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, h1, i, input, label, section, span, table, tbody, td, text, thead, tr)
+import Html exposing (Html, button, div, h1, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (class, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Types exposing (FetchingModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), PMModel, PMMsg(..), Player, PlayerManager)
@@ -54,8 +54,8 @@ update msg model =
                 Just editingPM ->
                     case editingPM.id of
                         TempId ->
-                            ( Fetching (UpdatingSite model.siteId)
-                            , Api.createNewPM FetchingPMModel editingPM model |> Cmd.map FetchingMsg
+                            ( MainPage model
+                            , Api.createId GotNewId |> Cmd.map PMMsg
                             )
 
                         Id _ ->
@@ -79,6 +79,21 @@ update msg model =
                 Nothing ->
                     ( MainPage model, Cmd.none )
 
+        GotNewId newId ->
+            case model.editingPM of
+                Nothing ->
+                    ( MainPage model, Cmd.none )
+
+                Just editingPM ->
+                    let
+                        newPM =
+                            { editingPM | id = newId }
+                    in
+                    ( Fetching (UpdatingSite model.siteId)
+                    , Api.createNewPM FetchingPMModel newPM model
+                        |> Cmd.map FetchingMsg
+                    )
+
         ClickCancel ->
             ( MainPage
                 { model
@@ -87,8 +102,16 @@ update msg model =
             , Cmd.none
             )
 
+        ClickDeletePM pmId ->
+            ( Fetching (UpdatingSite model.siteId)
+            , Api.deletePM FetchingPMModel pmId model |> Cmd.map FetchingMsg
+            )
+
         BackToSiteList ->
             ( Fetching FetchingSiteList, Api.fetch () )
+
+        ToggleEditMode ->
+            ( MainPage { model | listEditing = not model.listEditing }, Cmd.none )
 
         ClickNewPlayer ->
             Debug.todo "branch 'ClickNewPlayer' not implemented"
@@ -152,21 +175,17 @@ viewActionBar =
     in
     div
         [ classList
-            [ Bulma.columns
+            [ Bulma.container
+            , Bulma.px3
+            , Bulma.py3
             , Bulma.isVcentered
+            , Bulma.isFull
+            , Bulma.hasBackgroundLight
             ]
         ]
-        [ div
-            [ classList
-                [ Bulma.column
-                , Bulma.isFull
-                , Bulma.hasBackgroundLight
-                ]
-            ]
-            [ backButton BackToSiteList
-            , viewTitle
-            , settingButton
-            ]
+        [ backButton BackToSiteList
+        , viewTitle
+        , settingButton
         ]
 
 
@@ -185,12 +204,14 @@ viewPMList : PMModel -> Html PMMsg
 viewPMList model =
     let
         addNewButton =
-            addButton ClickNewPlayerManager "Add"
+            myButton ClickNewPlayerManager "Add" Bulma.isPrimary
     in
     case List.length model.pmList of
         0 ->
             div [ class Bulma.container ]
-                [ addNewButton
+                [ p [ class Bulma.isSize5 ]
+                    [ text "Please create a new PlayerManager." ]
+                , addNewButton
                 ]
 
         _ ->
@@ -200,7 +221,10 @@ viewPMList model =
                         [ Bulma.block
                         ]
                     ]
-                    [ addNewButton
+                    [ div [ class Bulma.buttons ]
+                        [ addNewButton
+                        , myButton ToggleEditMode "Edit" Bulma.isWarning
+                        ]
                     , table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
                         [ thead []
                             [ td [] [ text "No." ]
@@ -211,7 +235,9 @@ viewPMList model =
                         , tbody []
                             (model.pmList
                                 |> List.indexedMap
-                                    viewPlayerManager
+                                    (viewPlayerManager
+                                        model.listEditing
+                                    )
                             )
                         ]
                     ]
@@ -222,12 +248,32 @@ viewPMList model =
                 ]
 
 
-viewPlayerManager : Int -> PlayerManager -> Html msg
-viewPlayerManager index pm =
+viewPlayerManager : Bool -> Int -> PlayerManager -> Html PMMsg
+viewPlayerManager listEditing index pm =
+    let
+        head =
+            if listEditing then
+                div [ class Bulma.control ]
+                    [ button
+                        [ classList
+                            [ Bulma.button
+                            , Bulma.isSmall
+                            , Bulma.hasTextDanger
+                            ]
+                        , onClick (ClickDeletePM pm.id)
+                        ]
+                        [ span [ class Bulma.icon ]
+                            [ i [ class "fa fa-trash" ] [] ]
+                        ]
+                    ]
+
+            else
+                span [ class Bulma.isSize6 ]
+                    [ 1 + index |> String.fromInt |> text ]
+    in
     tr []
         [ td []
-            [ span [ class Bulma.isSize6 ]
-                [ 1 + index |> String.fromInt |> text ]
+            [ head
             ]
         , td []
             [ span [ class Bulma.isSize6 ]
@@ -290,18 +336,17 @@ viewPlayerList model =
             ]
 
 
-addButton : PMMsg -> String -> Html PMMsg
-addButton msg label =
-    div [ class Bulma.mt3 ]
-        [ button
-            [ classList
-                [ Bulma.button
-                , Bulma.isPrimary
-                ]
-            , onClick msg
+myButton : PMMsg -> String -> String -> Html PMMsg
+myButton msg label buttonType =
+    button
+        [ classList
+            [ Bulma.button
+            , buttonType
+            , Bulma.mx1
             ]
-            [ text label
-            ]
+        , onClick msg
+        ]
+        [ text label
         ]
 
 
@@ -310,8 +355,8 @@ viewPMEdit pm =
     div [ classList [ Bulma.container ] ]
         [ inputText "Name" pm.name InputPMName
         , div []
-            [ addButton ClickSubmit "Submit"
-            , addButton ClickCancel "Cancel"
+            [ myButton ClickSubmit "Submit" Bulma.isPrimary
+            , myButton ClickCancel "Cancel" Bulma.isDanger
             ]
         ]
 
