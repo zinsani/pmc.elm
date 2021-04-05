@@ -27,38 +27,51 @@ app.ports.storeSites.subscribe(function (sites) {
   const newVal = {
     ...current,
     sites,
-    pmModels: current.pmModels || []
+    playerManagers: current.playerManagers || []
   };
   console.log("storeSites", sites);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 
+app.ports.storeSite.subscribe(function (newSite) {
+  const current = getStoredData();
+  const found = current.sites?.list.find(s => s.id == newSite.id);
+
+  console.log("Site: found", found);
+  const list = found
+    ? current.sites.list.map(site => (site.id === newSite.id ? newSite : site))
+    : [...(current.sites.list ?? []), newSite];
+
+  const newVal = {...current, sites: { ...current.sites, list }};
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+});
+
+
 app.ports.fetch.subscribe(function () {
   const val = getStoredData();
 
-  // Report that the new pmModels was stored successfully.
+  // Report that the new playerManagers was stored successfully.
   setTimeout(function () {
     console.log("fetch", val);
     app.ports.onStoreChange.send(val);
   }, 0);
 });
 
-app.ports.storePMModels?.subscribe(function (pmModels) {
+app.ports.storePlayerManagers.subscribe(function (playerManagers) {
   const current = getStoredData();
-  const newVal = { ...current, pmModels };
+  const newVal = { ...current, playerManagers };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 
-app.ports.storePMModel?.subscribe(function (pmModel) {
+app.ports.storePlayerManager.subscribe(function (playerManager) {
+    console.log("storePlayerManager", playerManager);
+
   const current = getStoredData();
-  const found = current.pmModels?.find(pm => pm.siteId == pmModel.siteId);
+  const playerManagers = current.playerManagers.find(pm => pm.id === playerManager.id) ? current.playerManagers.map(pm => pm.id ===playerManager.id ? playerManager : pm) : [...current.playerManagers, playerManager]; 
 
-  console.log("storePMModel: found", found);
-  const pmModels = found
-    ? current.pmModels.map(md => (md.siteId === pmModel.siteId ? pmModel : md))
-    : [...(current.pmModels ?? []), pmModel];
+  console.log('new player managers', playerManagers);
 
-  const newVal = { ...current, pmModels };
+  const newVal = { ...current, playerManagers };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 

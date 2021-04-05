@@ -1,34 +1,42 @@
 module Main exposing (main)
 
-import Api exposing (defaultPMModel)
+import Api exposing (defaultSite)
 import Bulma.Classes as Bulma
+import Detail
 import Html exposing (Html, div, node, text)
 import Html.Attributes exposing (class, href, rel, value)
 import Json.Decode as Decode exposing (Value)
-import MDView
+import Master
 import Site
-import Types exposing (Data, FetchingModel(..), FetchingMsg(..), Model(..), Msg(..), PMMsg(..), SiteListMsg(..))
+import Types exposing (Data, FetchModel(..), FetchingMsg(..), MasterMsg(..), Model(..), Msg(..), SitesMsg(..))
 
 
 init : Maybe Data -> ( Model, Cmd Msg )
 init storedData =
     case storedData of
         Nothing ->
-            ( Fetching UpdatingSiteList, Api.initialize FetchingSites |> Cmd.map FetchingMsg )
+            ( Fetch UpdateSites, Api.initialize FetchingSites |> Cmd.map FetchingMsg )
 
         Just data ->
-            case ( data.sites, data.sites.selected ) of
+            case ( List.length data.sites.list, data.sites.selected ) of
                 ( _, Nothing ) ->
+                    ( SiteListPage data.sites, Cmd.none )
+
+                ( 0, Just siteId ) ->
                     ( SiteListPage data.sites, Cmd.none )
 
                 ( _, Just siteId ) ->
                     let
-                        selectedPMModel =
-                            List.filter (\pm -> pm.siteId == siteId) data.pmModels
+                        maybeSite =
+                            List.filter (\s -> s.id == siteId) data.sites.list
                                 |> List.head
-                                |> Maybe.withDefault (defaultPMModel siteId)
                     in
-                    ( MainPage selectedPMModel, Cmd.none )
+                    case maybeSite of
+                        Just site ->
+                            ( MainPage site data.playerManagers, Cmd.none )
+
+                        Nothing ->
+                            ( SiteListPage data.sites, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -36,9 +44,9 @@ subscriptions model =
     let
         maybeSiteId =
             case model of
-                Fetching data ->
+                Fetch data ->
                     case data of
-                        FetchingSite siteId ->
+                        FetchSite siteId ->
                             Just siteId
 
                         _ ->
@@ -64,8 +72,12 @@ handleFetchedData maybeSiteId value =
                     FetchedSites data.sites |> FetchingMsg
 
                 Just siteId ->
-                    (List.filter (\pm -> pm.siteId == siteId) data.pmModels |> List.head)
-                        |> FetchedPMModel
+                    FetchedSite
+                        (List.filter (\s -> s.id == siteId)
+                            data.sites.list
+                            |> List.head
+                        )
+                        data.playerManagers
                         |> FetchingMsg
 
         Err err ->
@@ -75,48 +87,48 @@ handleFetchedData maybeSiteId value =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( model, msg ) of
-        ( Fetching fetchingModel, FetchingMsg fetchingMsg ) ->
-            updateFetching fetchingMsg fetchingModel
+        ( Fetch fetchingModel, FetchingMsg fetchingMsg ) ->
+            updateFetch fetchingMsg fetchingModel
 
-        ( SiteListPage sites, SiteListMsg slmsg ) ->
+        ( SiteListPage sites, SitesMsg slmsg ) ->
             Site.update slmsg sites
 
-        ( MainPage mainModel, PMMsg mdvMsg ) ->
-            MDView.update mdvMsg mainModel
+        ( MainPage site playerManagers, MasterMsg mMsg ) ->
+            Master.update mMsg ( site, playerManagers )
 
         ( _, _ ) ->
             ( model, Cmd.none )
 
 
-updateFetching : FetchingMsg -> FetchingModel -> ( Model, Cmd Msg )
-updateFetching msg model =
+updateFetch : FetchingMsg -> FetchModel -> ( Model, Cmd Msg )
+updateFetch msg model =
     case ( model, msg ) of
-        ( UpdatingSiteList, _ ) ->
-            ( Fetching FetchingSiteList, Api.fetch () )
+        ( UpdateSites, _ ) ->
+            ( Fetch FetchSites, Api.fetch () )
 
-        ( UpdatingSite siteId, m ) ->
+        ( UpdateSite siteId, m ) ->
             let
                 _ =
-                    Debug.log "UpdatingSitemsg" m
+                    Debug.log "UpdateSitemsg" m
             in
-            ( Fetching (FetchingSite siteId), Api.fetch () )
+            ( Fetch (FetchSite siteId), Api.fetch () )
 
-        ( FetchingSiteList, FetchedSites sites ) ->
+        ( FetchSites, FetchedSites sites ) ->
             ( SiteListPage sites, Cmd.none )
 
-        ( FetchingSite _, FetchedPMModel maybeNewPMModel ) ->
-            case Debug.log "maybeNewPMModel" maybeNewPMModel of
-                Just newPMModel ->
-                    ( MainPage newPMModel, Cmd.none )
+        ( FetchSite _, FetchedSite maybeNewSite playerManagers ) ->
+            case Debug.log "maybeNewSite" maybeNewSite of
+                Just newSite ->
+                    ( MainPage newSite playerManagers, Cmd.none )
 
                 Nothing ->
-                    ( Fetching (FetchingErr "PM Model is not found"), Cmd.none )
+                    ( Fetch (FetchErr "PM Model is not found"), Cmd.none )
 
-        ( FetchingErr err, _ ) ->
-            ( Fetching (FetchingErr err), Cmd.none )
+        ( FetchErr err, _ ) ->
+            ( Fetch (FetchErr err), Cmd.none )
 
         ( _, _ ) ->
-            ( Fetching model, Cmd.none )
+            ( Fetch model, Cmd.none )
 
 
 view : Model -> { title : String, body : List (Html Msg) }
@@ -126,23 +138,26 @@ view model =
             case model of
                 SiteListPage data ->
                     Site.view data
-                        |> Html.map SiteListMsg
+                        |> Html.map SitesMsg
 
-                MainPage mdvm ->
-                    MDView.view mdvm
-                        |> Html.map PMMsg
+                MainPage site playerManagers ->
+                    Master.view site playerManagers
+                        |> Html.map MasterMsg
 
-                Fetching fetchingState ->
+                Fetch fetchingState ->
                     div [ class Bulma.container ]
                         [ div [ class Bulma.hasTextCentered ]
                             [ case fetchingState of
-                                FetchingErr err ->
+                                FetchErr err ->
                                     text err
 
                                 _ ->
                                     text "..."
                             ]
                         ]
+
+                DetailPage playerManager ->
+                    Detail.view playerManager
 
         stylesheetBulma : Html msg
         stylesheetBulma =

@@ -4,12 +4,12 @@ import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, h1, i, input, label, span, table, tbody, td, text, th, thead, tr)
-import Html.Attributes exposing (checked, class, hidden, placeholder, style, type_, value)
+import Html.Attributes exposing (checked, class, disabled, hidden, placeholder, style, type_, value)
 import Html.Events exposing (onBlur, onCheck, onClick, onDoubleClick, onInput)
-import Types exposing (FetchingModel(..), FetchingMsg(..), Model(..), Msg(..), Site, SiteListMsg(..), Sites)
+import Types exposing (FetchModel(..), FetchingMsg(..), Model(..), Msg(..), Site, Sites, SitesMsg(..))
 
 
-view : Sites -> Html SiteListMsg
+view : Sites -> Html SitesMsg
 view model =
     div [ class Bulma.container ]
         [ div [ classList [ Bulma.columns, Bulma.isCentered ] ]
@@ -32,6 +32,7 @@ view model =
                         [ button
                             [ classList [ Bulma.button, Bulma.isPrimary ]
                             , onClick <| ClickNewSite model.newSiteName
+                            , String.length model.newSiteName == 0 |> disabled
                             ]
                             [ text "New"
                             ]
@@ -51,7 +52,7 @@ view model =
         ]
 
 
-viewContent : Sites -> Html SiteListMsg
+viewContent : Sites -> Html SitesMsg
 viewContent model =
     if List.isEmpty model.list then
         div [ classList [ Bulma.mt2, Bulma.px3 ] ] [ text "Welcome to PlayerManagerClient. Why don't you create new site?" ]
@@ -78,7 +79,7 @@ viewContent model =
             ]
 
 
-viewSite : Maybe Site -> Int -> Site -> Html SiteListMsg
+viewSite : Maybe Site -> Int -> Site -> Html SitesMsg
 viewSite editingSite num site =
     tr []
         [ td [ class Bulma.hasTextCentered ] [ text <| String.fromInt (num + 1) ]
@@ -108,7 +109,7 @@ viewSite editingSite num site =
         ]
 
 
-viewSiteName : Maybe Site -> Site -> Html SiteListMsg
+viewSiteName : Maybe Site -> Site -> Html SitesMsg
 viewSiteName editingSite site =
     case editingSite of
         Nothing ->
@@ -122,7 +123,7 @@ viewSiteName editingSite site =
                 viewNotEditingSiteName site
 
 
-viewEditingSiteName : Site -> Html SiteListMsg
+viewEditingSiteName : Site -> Html SitesMsg
 viewEditingSiteName site =
     td []
         [ div [ class Bulma.field ]
@@ -143,19 +144,19 @@ viewNotEditingSiteName site =
     td [] [ span [] [ text site.name ] ]
 
 
-viewNormalSiteName : Site -> Html SiteListMsg
+viewNormalSiteName : Site -> Html SitesMsg
 viewNormalSiteName site =
     td [ onDoubleClick <| StartEditSite site.id ] [ span [] [ text site.name ] ]
 
 
-update : SiteListMsg -> Sites -> ( Model, Cmd Msg )
+update : SitesMsg -> Sites -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         InputSiteName siteName ->
             ( SiteListPage { model | newSiteName = siteName }, Cmd.none )
 
         ClickNewSite siteName ->
-            ( Fetching UpdatingSiteList
+            ( Fetch UpdateSites
             , Api.createNewSite FetchingSites siteName model
                 |> Cmd.map FetchingMsg
             )
@@ -179,8 +180,8 @@ update msg model =
             )
 
         EndEditSite modified ->
-            ( Fetching UpdatingSiteList
-            , Api.modifySiteList
+            ( Fetch UpdateSites
+            , Api.modifySites
                 FetchingSites
                 (model.list
                     |> List.map
@@ -200,14 +201,14 @@ update msg model =
             ( SiteListPage { model | saveSelection = save }, Cmd.none )
 
         ClickOpenSite siteId ->
-            ( Fetching (UpdatingSite siteId)
-            , Api.selectSite FetchingPMModel siteId model
+            ( Fetch (UpdateSite siteId)
+            , Api.selectSite FetchingSite siteId model
                 |> Cmd.map FetchingMsg
             )
 
         ClickDeleteSite siteId ->
-            ( Fetching UpdatingSiteList
-            , Api.modifySiteList
+            ( Fetch UpdateSites
+            , Api.modifySites
                 FetchingSites
                 (model.list |> List.filter (\s -> not <| s.id == siteId))
                 model

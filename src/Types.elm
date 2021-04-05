@@ -5,7 +5,7 @@ import Random
 
 type alias Data =
     { sites : Sites
-    , pmModels : List PMModel
+    , playerManagers : List PlayerManager
     }
 
 
@@ -19,36 +19,37 @@ type alias Sites =
 
 
 type alias Site =
-    { id : Int, name : String }
+    { id : Int
+    , name : String
+    , playerManagers : List Id
+    , players : List Id
+    , editingPM : Maybe PlayerManager
+    , selectedPMId : Maybe Id
+    , lastInputPM : Maybe PlayerManager
+    , listEditing : Bool
+    }
 
 
 type Model
     = SiteListPage Sites
-    | MainPage PMModel
-    | Fetching FetchingModel
+    | MainPage Site (List PlayerManager)
+    | DetailPage PlayerManager
+    | Fetch FetchModel
 
 
-type FetchingModel
-    = FetchingSiteList
-    | FetchingSite Int
-    | FetchingErr String
-    | UpdatingSiteList
-    | UpdatingSite Int
+type FetchModel
+    = FetchSites
+    | FetchSite Int
+    | FetchErr String
+    | UpdateSites
+    | UpdateSite Int
 
 
-
--- = SucceedWithSites Sites
--- | SucceedWithPMList (List PlayerManager)
--- | FailWithSites String
--- | FailWithPMList String
-
-
-type SiteListMsg
+type SitesMsg
     = ClickNewSite String
     | ClickOpenSite Int
     | ClickDeleteSite Int
     | InputSiteName String
-      -- | DeleteSite Int
     | StartEditSite Int
     | EditingSiteName String
     | EndEditSite Site
@@ -58,14 +59,14 @@ type SiteListMsg
 type FetchingMsg
     = FetchingSites
     | FetchedSites Sites
-    | FetchingPMModel
-    | FetchedPMModel (Maybe PMModel)
+    | FetchingSite
+    | FetchedSite (Maybe Site) (List PlayerManager)
     | FetchingError String
 
 
 type Msg
-    = SiteListMsg SiteListMsg
-    | PMMsg PMMsg
+    = SitesMsg SitesMsg
+    | MasterMsg MasterMsg
     | FetchingMsg FetchingMsg
 
 
@@ -86,10 +87,6 @@ idToString id =
 
         TempId ->
             "temp"
-
-
-
--- |> Debug.log "createId" Tuple.first
 
 
 type alias PlayerManager =
@@ -125,18 +122,7 @@ type alias PlayerOptions =
     }
 
 
-type alias PMModel =
-    { siteId : Int
-    , pmList : List PlayerManager
-    , playerList : List Player
-    , editingPM : Maybe PlayerManager
-    , selectedPMId : Maybe Id
-    , lastInputPM : Maybe PlayerManager
-    , listEditing : Bool
-    }
-
-
-type PMMsg
+type MasterMsg
     = ClickNewPlayerManager
     | ClickNewPlayer
     | ClickSubmit
@@ -146,4 +132,5 @@ type PMMsg
     | InputPName String
     | BackToSiteList
     | ToggleEditMode
-    | GotNewId Id
+    | GotNewIdOfPM Id
+    | SelectPM Id
