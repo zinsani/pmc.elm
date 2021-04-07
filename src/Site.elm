@@ -122,7 +122,7 @@ viewSite editingSite listEditing num site =
                         , onClick <| ClickOpenSite site.id
                         ]
                         [ span [ class Bulma.icon ]
-                            [ i [ class "fa fa-arrow-right" ] []
+                            [ i [ class "fa fa-chevron-right" ] []
                             ]
                         ]
                     ]

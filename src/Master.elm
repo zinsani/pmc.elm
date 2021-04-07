@@ -186,15 +186,24 @@ backButton msg =
 viewPlayerManagers : Site -> List PlayerManager -> Html MasterMsg
 viewPlayerManagers site playerManagers =
     let
-        addNewButton =
-            myButton ClickNewPlayerManager "Add" Bulma.isPrimary
+        addNewButton classes =
+            [ Bulma.isPrimary ]
+                ++ classes
+                |> String.join " "
+                |> myButton
+                    ClickNewPlayerManager
+                    "Add"
+
+        editButton =
+            String.join " " [ Bulma.isWarning, Bulma.isSmall ]
+                |> myButton ToggleEditMode "Edit"
     in
     case List.length site.playerManagers of
         0 ->
             div [ class Bulma.container ]
                 [ p [ class Bulma.isSize5 ]
                     [ text "Please create a new PlayerManager." ]
-                , addNewButton
+                , addNewButton []
                 ]
 
         _ ->
@@ -204,16 +213,17 @@ viewPlayerManagers site playerManagers =
                         [ Bulma.block
                         ]
                     ]
-                    [ div [ class Bulma.buttons ]
-                        [ addNewButton
-                        , myButton ToggleEditMode "Edit" Bulma.isWarning
-                        ]
-                    , table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
+                    [ table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
                         [ thead []
                             [ td [] [ text "No." ]
-                            , td [ style "width" "35%" ] [ text "Name" ]
-                            , td [ style "width" "35%" ] [ text "Location" ]
-                            , td [ style "width" "25%" ] [ text "Controls" ]
+                            , td [ style "width" "30%" ] [ text "Name" ]
+                            , td [ style "width" "30%" ] [ text "Location" ]
+                            , td [ style "width" "30%" ]
+                                [ div [ class Bulma.buttons ]
+                                    [ addNewButton [ Bulma.isSmall ]
+                                    , editButton
+                                    ]
+                                ]
                             ]
                         , tbody []
                             (playerManagers
@@ -229,8 +239,6 @@ viewPlayerManagers site playerManagers =
                             )
                         ]
                     ]
-                , div [ class Bulma.block ]
-                    (viewPlayerList site playerManagers)
                 ]
 
 
@@ -278,7 +286,7 @@ viewPlayerManager listEditing index pm =
 pmControlButtonGroup : PlayerManager -> Html MasterMsg
 pmControlButtonGroup pm =
     div [ class Bulma.columns ]
-        [ div [ classList [ Bulma.column, Bulma.buttons, Bulma.hasAddons, Bulma.mb0 ] ]
+        [ div [ classList [ Bulma.column, Bulma.buttons, Bulma.hasAddons, Bulma.my0, Bulma.isNarrow ] ]
             [ button [ classList [ Bulma.button, Bulma.isSmall ] ]
                 [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
             , button [ classList [ Bulma.button, Bulma.isSmall ] ]
@@ -293,9 +301,7 @@ pmControlButtonGroup pm =
                 [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
                     [ i [ class "fa fa-upload" ] [] ]
                 ]
-            ]
-        , div [ classList [ Bulma.column, Bulma.isNarrow ] ]
-            [ button
+            , button
                 [ classList
                     [ Bulma.isPulledRight
                     , Bulma.button
@@ -309,42 +315,6 @@ pmControlButtonGroup pm =
                 ]
             ]
         ]
-
-
-viewPlayerList : Site -> List PlayerManager -> List (Html msg)
-viewPlayerList site playerManagers =
-    case site.selectedPMId of
-        Just selectedPMId ->
-            let
-                maybePm =
-                    playerManagers
-                        |> List.filter
-                            (\pm ->
-                                List.any (\a -> a == pm.id)
-                                    site.playerManagers
-                            )
-                        |> List.head
-
-                players =
-                    case maybePm of
-                        Nothing ->
-                            []
-
-                        Just playerManager ->
-                            playerManager.players
-            in
-            players
-                |> List.map
-                    (\p ->
-                        div [ class Bulma.column ]
-                            [ text p.name
-                            ]
-                    )
-
-        Nothing ->
-            [ div [ class Bulma.container ]
-                [ text "No Player yet" ]
-            ]
 
 
 myButton : MasterMsg -> String -> String -> Html MasterMsg
