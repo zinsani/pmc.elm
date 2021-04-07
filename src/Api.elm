@@ -66,7 +66,10 @@ createNewSite msg siteName sites =
             sites.list ++ [ defaultSite newId siteName ]
     in
     Cmd.batch
-        [ { sites | list = newList }
+        [ { sites
+            | list = newList
+            , listEditing = False
+          }
             |> sitesEncoder
             |> storeSites
         , getResultAfter msg 10
@@ -78,7 +81,8 @@ selectSite msg siteId sites =
     let
         newSites =
             { sites
-                | selected =
+                | listEditing = False
+                , selected =
                     if sites.saveSelection then
                         Just siteId
 
@@ -106,6 +110,7 @@ modifySites msg modified sites =
         newSites =
             { sites
                 | list = modified
+                , listEditing = False
                 , editingSite = Nothing
             }
     in
@@ -138,6 +143,7 @@ createNewPM msg pm site =
         [ { site
             | playerManagers = site.playerManagers ++ [ pm.id ]
             , editingPM = Nothing
+            , listEditing = False
             , lastInputPM = Just { pm | id = TempId }
           }
             |> siteEncoder
@@ -152,6 +158,7 @@ modifyPlayerManager msg pm site =
     Cmd.batch
         [ { site
             | editingPM = Nothing
+            , listEditing = False
             , lastInputPM = Just { pm | id = TempId }
           }
             |> siteEncoder
@@ -175,6 +182,8 @@ deletePlayerManager msg pmId site playerManagers =
     Cmd.batch
         [ { site
             | playerManagers = newPlayerManagers
+            , listEditing = False
+            , editingPM = Nothing
           }
             |> siteEncoder
             |> storeSite
@@ -200,6 +209,7 @@ defaultSites =
     , newSiteName = ""
     , editingSite = Nothing
     , saveSelection = False
+    , listEditing = False
     }
 
 
@@ -249,13 +259,14 @@ storageDecoder =
 
 sitesDecoder : Decoder Sites
 sitesDecoder =
-    Decode.map5
+    Decode.map6
         Sites
         (Decode.field "list" (Decode.list siteDecoder))
         (Decode.maybe (Decode.field "selected" Decode.int))
         (Decode.field "newSiteName" Decode.string)
         (Decode.maybe (Decode.field "editingSite" siteDecoder))
         (Decode.field "saveSelection" Decode.bool)
+        (Decode.field "listEditing" Decode.bool)
 
 
 siteDecoder : Decoder Site
@@ -396,6 +407,7 @@ sitesEncoder sites =
         , ( "saveSelection", Encode.bool sites.saveSelection )
         , ( "newSiteName", Encode.string "" )
         , ( "editingSite", Encode.null )
+        , ( "listEditing", Encode.bool sites.listEditing )
         ]
 
 

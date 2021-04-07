@@ -15,6 +15,7 @@ type alias Sites =
     , newSiteName : String
     , editingSite : Maybe Site
     , saveSelection : Bool
+    , listEditing : Bool
     }
 
 
@@ -54,6 +55,7 @@ type SitesMsg
     | EditingSiteName String
     | EndEditSite Site
     | ToggleSaveSelection Bool
+    | ToggleEditModeOnSites
 
 
 type FetchingMsg

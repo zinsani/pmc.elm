@@ -65,42 +65,64 @@ viewContent model =
                         [ text "No."
                         ]
                     , th [ style "width" "60%" ]
-                        [ text "Name"
+                        [ text "Site"
                         ]
                     , th [ class Bulma.hasTextCentered ]
-                        [ text "Open"
+                        [ button
+                            [ classList
+                                [ Bulma.button
+                                , Bulma.isSmall
+                                , Bulma.isWarning
+                                ]
+                            , onClick ToggleEditModeOnSites
+                            ]
+                            [ text "edit" ]
                         ]
                     ]
                 , List.sortBy .id model.list
                     |> List.indexedMap
-                        (viewSite model.editingSite)
+                        (viewSite model.editingSite model.listEditing)
                     |> tbody []
                 ]
             ]
 
 
-viewSite : Maybe Site -> Int -> Site -> Html SitesMsg
-viewSite editingSite num site =
+viewSite : Maybe Site -> Bool -> Int -> Site -> Html SitesMsg
+viewSite editingSite listEditing num site =
+    let
+        header =
+            if listEditing then
+                button
+                    [ classList [ Bulma.button, Bulma.isDanger, Bulma.isSmall ]
+                    , onClick <| ClickDeleteSite site.id
+                    ]
+                    [ span [ class Bulma.icon ]
+                        [ i [ class "fa fa-trash" ] []
+                        ]
+                    ]
+
+            else
+                text <| String.fromInt (num + 1)
+    in
     tr []
-        [ td [ class Bulma.hasTextCentered ] [ text <| String.fromInt (num + 1) ]
+        [ td [ class Bulma.hasTextCentered ]
+            [ header
+            ]
         , viewSiteName editingSite site
         , td [ class Bulma.hasTextCentered ]
             [ div [ class Bulma.field ]
                 [ div [ class Bulma.control ]
                     [ button
-                        [ classList [ Bulma.mr1, Bulma.button, Bulma.isPrimary, Bulma.isSmall ]
+                        [ classList
+                            [ Bulma.mr1
+                            , Bulma.button
+                            , Bulma.isSmall
+                            , Bulma.isWhite
+                            ]
                         , onClick <| ClickOpenSite site.id
                         ]
                         [ span [ class Bulma.icon ]
-                            [ i [ class "fa fa-search-plus" ] []
-                            ]
-                        ]
-                    , button
-                        [ classList [ Bulma.button, Bulma.isDanger, Bulma.isSmall ]
-                        , onClick <| ClickDeleteSite site.id
-                        ]
-                        [ span [ class Bulma.icon ]
-                            [ i [ class "fa fa-trash" ] []
+                            [ i [ class "fa fa-arrow-right" ] []
                             ]
                         ]
                     ]
@@ -213,4 +235,9 @@ update msg model =
                 (model.list |> List.filter (\s -> not <| s.id == siteId))
                 model
                 |> Cmd.map FetchingMsg
+            )
+
+        ToggleEditModeOnSites ->
+            ( SiteListPage { model | listEditing = not model.listEditing }
+            , Cmd.none
             )
