@@ -17,7 +17,7 @@ subscriptions _ =
 update : MasterMsg -> ( Site, List PlayerManager ) -> ( Model, Cmd Msg )
 update msg ( site, playerManagers ) =
     case msg of
-        ClickNewPlayerManager ->
+        ClickNewPM ->
             let
                 editingPM =
                     Maybe.withDefault
@@ -44,7 +44,7 @@ update msg ( site, playerManagers ) =
             , Cmd.none
             )
 
-        ClickSubmit ->
+        ClickSubmitPM ->
             case site.editingPM of
                 Just editingPM ->
                     case editingPM.id of
@@ -80,9 +80,20 @@ update msg ( site, playerManagers ) =
                     )
 
         SelectPM selectedId ->
-            ( MainPage site playerManagers, Cmd.none )
+            let
+                maybePM =
+                    playerManagers
+                        |> List.filter (\x -> x.id == selectedId)
+                        |> List.head
+            in
+            case maybePM of
+                Just pm ->
+                    ( DetailPage ( site.id, pm ), Cmd.none )
 
-        ClickCancel ->
+                Nothing ->
+                    ( MainPage site playerManagers, Cmd.none )
+
+        ClickCancelPM ->
             ( MainPage { site | editingPM = Nothing } playerManagers
             , Cmd.none
             )
@@ -96,16 +107,10 @@ update msg ( site, playerManagers ) =
         BackToSiteList ->
             ( Fetch FetchSites, Api.fetch () )
 
-        ToggleEditMode ->
+        ToggleEditModeOnMaster ->
             ( MainPage { site | listEditing = not site.listEditing } playerManagers
             , Cmd.none
             )
-
-        ClickNewPlayer ->
-            Debug.todo "branch 'ClickNewPlayer' not implemented"
-
-        InputPName _ ->
-            Debug.todo "branch 'InputPName _' not implemented"
 
 
 view : Site -> List PlayerManager -> Html MasterMsg
@@ -113,7 +118,7 @@ view site playerManagers =
     case site.editingPM of
         Just editingPM ->
             div [ class Bulma.container ]
-                [ viewActionBar
+                [ viewActionBar site
                 , section [ class Bulma.section ]
                     [ viewPMEdit editingPM
                     ]
@@ -121,18 +126,18 @@ view site playerManagers =
 
         Nothing ->
             div [ class Bulma.container ]
-                [ viewActionBar
+                [ viewActionBar site
                 , section [ class Bulma.section ]
                     [ viewPlayerManagers site playerManagers ]
                 ]
 
 
-viewActionBar : Html MasterMsg
-viewActionBar =
+viewActionBar : Site -> Html MasterMsg
+viewActionBar model =
     let
         viewTitle =
             span [ class Bulma.isSize4 ]
-                [ text "Player Manager Client"
+                [ "Site: " ++ model.name |> text
                 ]
 
         settingButton : Html msg
@@ -191,12 +196,12 @@ viewPlayerManagers site playerManagers =
                 ++ classes
                 |> String.join " "
                 |> myButton
-                    ClickNewPlayerManager
+                    ClickNewPM
                     "Add"
 
         editButton =
             String.join " " [ Bulma.isWarning, Bulma.isSmall ]
-                |> myButton ToggleEditMode "Edit"
+                |> myButton ToggleEditModeOnMaster "Edit"
     in
     case List.length site.playerManagers of
         0 ->
@@ -336,8 +341,8 @@ viewPMEdit pm =
     div [ classList [ Bulma.container ] ]
         [ inputText "Name" pm.name InputPMName
         , div []
-            [ myButton ClickSubmit "Submit" Bulma.isPrimary
-            , myButton ClickCancel "Cancel" Bulma.isDanger
+            [ myButton ClickSubmitPM "Submit" Bulma.isPrimary
+            , myButton ClickCancelPM "Cancel" Bulma.isDanger
             ]
         ]
 

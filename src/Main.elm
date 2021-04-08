@@ -42,6 +42,8 @@ init storedData =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     let
+        -- _ =
+        --     model |> Debug.log "subscription"
         maybeSiteId =
             case model of
                 Fetch data ->
@@ -96,6 +98,9 @@ update msg model =
         ( MainPage site playerManagers, MasterMsg mMsg ) ->
             Master.update mMsg ( site, playerManagers )
 
+        ( DetailPage ( siteId, playerManager ), DetailMsg dMsg ) ->
+            Detail.update dMsg ( siteId, playerManager )
+
         ( _, _ ) ->
             ( model, Cmd.none )
 
@@ -107,10 +112,6 @@ updateFetch msg model =
             ( Fetch FetchSites, Api.fetch () )
 
         ( UpdateSite siteId, m ) ->
-            let
-                _ =
-                    Debug.log "UpdateSitemsg" m
-            in
             ( Fetch (FetchSite siteId), Api.fetch () )
 
         ( FetchSites, FetchedSites sites ) ->
@@ -156,8 +157,9 @@ view model =
                             ]
                         ]
 
-                DetailPage playerManager ->
+                DetailPage ( siteId, playerManager ) ->
                     Detail.view playerManager
+                        |> Html.map DetailMsg
 
         stylesheetBulma : Html msg
         stylesheetBulma =

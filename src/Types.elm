@@ -34,7 +34,7 @@ type alias Site =
 type Model
     = SiteListPage Sites
     | MainPage Site (List PlayerManager)
-    | DetailPage PlayerManager
+    | DetailPage ( Int, PlayerManager )
     | Fetch FetchModel
 
 
@@ -58,6 +58,30 @@ type SitesMsg
     | ToggleEditModeOnSites
 
 
+type MasterMsg
+    = ClickNewPM
+    | ClickSubmitPM
+    | ClickCancelPM
+    | ClickDeletePM Id
+    | InputPMName String
+    | BackToSiteList
+    | ToggleEditModeOnMaster
+    | GotNewIdOfPM Id
+    | SelectPM Id
+
+
+type DetailMsg
+    = ClickNewPlayer String
+    | ClickSubmitPlayer
+    | ClickCancelPlayer
+    | ClickDeletePlayer Id
+    | InputPName String
+    | ToggleEditModeOnDetail
+    | GotNewIdOfPlayer Id
+    | SelectPlayer Id
+    | BackToSite
+
+
 type FetchingMsg
     = FetchingSites
     | FetchedSites Sites
@@ -69,6 +93,7 @@ type FetchingMsg
 type Msg
     = SitesMsg SitesMsg
     | MasterMsg MasterMsg
+    | DetailMsg DetailMsg
     | FetchingMsg FetchingMsg
 
 
@@ -122,17 +147,3 @@ type alias PlayerOptions =
     , excludeDirectories : Maybe (List String)
     , logDir : Maybe String
     }
-
-
-type MasterMsg
-    = ClickNewPlayerManager
-    | ClickNewPlayer
-    | ClickSubmit
-    | ClickCancel
-    | ClickDeletePM Id
-    | InputPMName String
-    | InputPName String
-    | BackToSiteList
-    | ToggleEditMode
-    | GotNewIdOfPM Id
-    | SelectPM Id
