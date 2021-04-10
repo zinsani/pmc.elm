@@ -145,3 +145,8 @@ type alias PlayerOptions =
     , excludeDirectories : Maybe (List String)
     , logDir : Maybe String
     }
+
+type InputValue = StringInput String
+    | IntInput Int
+    | FloatInput Float
+    | BoolInput Bool
