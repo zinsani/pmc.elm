@@ -1,7 +1,5 @@
 module Types exposing (..)
 
-import Random
-
 
 type alias Data =
     { sites : Sites

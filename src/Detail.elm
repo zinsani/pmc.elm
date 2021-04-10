@@ -3,9 +3,9 @@ module Detail exposing (..)
 import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, i, p, span, table, tbody, td, text, th, thead, tr)
-import Html.Attributes exposing (class, type_)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html, button, div, i, span, table, tbody, td, text, thead, tr)
+import Html.Attributes exposing (class)
+import Html.Events exposing (onClick)
 import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), Player, PlayerManager)
 
 
@@ -28,11 +28,12 @@ view model =
         , table [ class Bulma.table ]
             [ thead [] []
             , tbody []
-                ([ viewPlayerManager model
-                 ]
-                    ++ (model.players
-                            |> List.map viewPlayer
-                       )
+                (List.concat
+                    [ [ viewPlayerManager model
+                      ]
+                    , model.players
+                        |> List.map viewPlayer
+                    ]
                 )
             ]
         ]

@@ -1,9 +1,9 @@
 module Master exposing (subscriptions, update, view)
 
-import Api exposing (defaultPlayerManager, siteEncoder)
+import Api exposing (defaultPlayerManager)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, h1, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
+import Html exposing (Html, button, div, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (class, style, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), Player, PlayerManager, Site)
