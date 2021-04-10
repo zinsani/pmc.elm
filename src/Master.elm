@@ -6,7 +6,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (class, style, type_, value)
 import Html.Events exposing (onClick, onInput)
-import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), Player, PlayerManager, Site)
+import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PC, Player, PlayerManager, Site)
 
 
 subscriptions : Site -> Sub MasterMsg
@@ -88,7 +88,16 @@ update msg ( site, playerManagers ) =
             in
             case maybePM of
                 Just pm ->
-                    ( DetailPage ( site.id, pm ), Cmd.none )
+                    ( DetailPage
+                        { siteId = site.id
+                        , playerManager = pm
+                        , editingPlayer = Nothing
+                        , selectedPlayerId = Nothing
+                        , lastInputPlayer = Nothing
+                        , listEditing = False
+                        }
+                    , Cmd.none
+                    )
 
                 Nothing ->
                     ( MainPage site playerManagers, Cmd.none )
@@ -192,8 +201,7 @@ viewPlayerManagers : Site -> List PlayerManager -> Html MasterMsg
 viewPlayerManagers site playerManagers =
     let
         addNewButton classes =
-            [ Bulma.isPrimary ]
-                ++ classes
+            List.concat [[ Bulma.isPrimary ] , classes]
                 |> String.join " "
                 |> myButton
                     ClickNewPM

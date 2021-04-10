@@ -29,10 +29,20 @@ type alias Site =
     }
 
 
+type alias PC =
+    { siteId : Int
+    , playerManager : PlayerManager
+    , editingPlayer : Maybe Player
+    , selectedPlayerId : Maybe Id
+    , lastInputPlayer : Maybe Player
+    , listEditing : Bool
+    }
+
+
 type Model
     = SiteListPage Sites
     | MainPage Site (List PlayerManager)
-    | DetailPage ( Int, PlayerManager )
+    | DetailPage PC
     | Fetch FetchModel
 
 
@@ -72,7 +82,10 @@ type DetailMsg
     = ClickNewPlayer String
     | ClickSubmitPlayer
     | ClickCancelPlayer
+    | ClickDeletePMOnDetail 
     | ClickDeletePlayer Id
+    | StartEditingPM
+    | EndEditingPM
     | InputPName String
     | ToggleEditModeOnDetail
     | GotNewIdOfPlayer Id
@@ -146,7 +159,9 @@ type alias PlayerOptions =
     , logDir : Maybe String
     }
 
-type InputValue = StringInput String
+
+type InputValue
+    = StringInput String
     | IntInput Int
     | FloatInput Float
     | BoolInput Bool

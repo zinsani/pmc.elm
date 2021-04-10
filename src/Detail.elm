@@ -6,40 +6,40 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, a, button, div, i, input, label, p, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
-import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), Player, PlayerManager)
+import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), Player, PlayerManager, PC)
 
 
-update : DetailMsg -> ( Int, PlayerManager ) -> ( Model, Cmd msg )
-update msg ( siteId, model ) =
+update : DetailMsg -> PC -> ( Model, Cmd msg )
+update msg model =
     case msg of
         BackToSite ->
-            ( Fetch (FetchSite siteId), Api.fetch () )
+            ( Fetch (FetchSite model.siteId), Api.fetch () )
 
         _ ->
-            ( DetailPage ( siteId, model ), Cmd.none )
+            ( DetailPage model, Cmd.none )
 
 
-view : PlayerManager -> Html DetailMsg
+view : PC -> Html DetailMsg
 view model =
     div [ class Bulma.container ]
         [ viewActionBar model
-        , div [] [ viewPlayerManager model ]
+        , div [] [ viewPlayerManager model.playerManager ]
         , table [ class Bulma.table ]
             [ thead [] []
             , tbody []
-                (model.players
+                (model.playerManager.players
                     |> List.map viewPlayer
                 )
             ]
         ]
 
 
-viewActionBar : PlayerManager -> Html DetailMsg
+viewActionBar : PC -> Html DetailMsg
 viewActionBar model =
     let
         viewTitle =
             span [ class Bulma.isSize4 ]
-                [ "PC: " ++ model.name |> text
+                [ "PC: " ++ model.playerManager.name |> text
                 ]
 
         settingButton : Html msg
@@ -90,7 +90,7 @@ backButton msg =
         ]
 
 
-viewPlayerManager : PlayerManager -> Html msg
+viewPlayerManager : PlayerManager -> Html DetailMsg
 viewPlayerManager model =
     div [ classList [ Bulma.card ] ]
         [ div [ class Bulma.cardHeader ]
@@ -148,8 +148,8 @@ viewPlayerManager model =
                 )
             ]
         , div [ class Bulma.cardFooter ]
-            [ a [ class Bulma.cardFooterItem, href "#" ] [ text "Edit" ]
-            , a [ class Bulma.cardFooterItem, href "#" ] [ text "Delete" ]
+            [ a [ class Bulma.cardFooterItem, href "#", onClick StartEditingPM ] [ text "Edit" ]
+            , a [ class Bulma.cardFooterItem, href "#", onClick ClickDeletePMOnDetail ] [ text "Delete" ]
             ]
         ]
 

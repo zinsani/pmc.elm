@@ -98,8 +98,8 @@ update msg model =
         ( MainPage site playerManagers, MasterMsg mMsg ) ->
             Master.update mMsg ( site, playerManagers )
 
-        ( DetailPage ( siteId, playerManager ), DetailMsg dMsg ) ->
-            Detail.update dMsg ( siteId, playerManager )
+        ( DetailPage pc, DetailMsg dMsg ) ->
+            Detail.update dMsg pc
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -111,7 +111,7 @@ updateFetch msg model =
         ( UpdateSites, _ ) ->
             ( Fetch FetchSites, Api.fetch () )
 
-        ( UpdateSite siteId, m ) ->
+        ( UpdateSite siteId, _ ) ->
             ( Fetch (FetchSite siteId), Api.fetch () )
 
         ( FetchSites, FetchedSites sites ) ->
@@ -157,8 +157,8 @@ view model =
                             ]
                         ]
 
-                DetailPage ( siteId, playerManager ) ->
-                    Detail.view playerManager
+                DetailPage pc ->
+                    Detail.view pc
                         |> Html.map DetailMsg
 
         stylesheetBulma : Html msg
