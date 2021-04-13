@@ -1,14 +1,16 @@
 module Main exposing (main)
 
-import Api exposing (defaultSite)
+import Api exposing (defaultPC)
 import Bulma.Classes as Bulma
 import Detail
+import Form.PlayerManager as PMEdit
 import Html exposing (Html, div, node, text)
 import Html.Attributes exposing (class, href, rel, value)
 import Json.Decode as Decode exposing (Value)
 import Master
 import Site
-import Types exposing (Data, FetchModel(..), FetchingMsg(..), MasterMsg(..), Model(..), Msg(..), SitesMsg(..))
+import Types exposing (Data, FetchModel(..), FetchingMsg(..), MasterMsg(..), Model(..), Msg(..), PMEditMsg(..), SitesMsg(..))
+import Types exposing (Id(..))
 
 
 init : Maybe Data -> ( Model, Cmd Msg )
@@ -44,25 +46,28 @@ subscriptions model =
     let
         -- _ =
         --     model |> Debug.log "subscription"
-        maybeSiteId =
+        ( maybeSiteId, maybePMId ) =
             case model of
                 Fetch data ->
                     case data of
                         FetchSite siteId ->
-                            Just siteId
+                            ( Just siteId, Nothing )
+
+                        FetchPC siteId pmId ->
+                            ( Just siteId, Just pmId )
 
                         _ ->
-                            Nothing
+                            (Nothing, Nothing)
 
                 _ ->
-                    Nothing
+                    (Nothing, Nothing)
     in
     Api.onStoreChange
-        (handleFetchedData maybeSiteId)
+        (handleFetchedData maybeSiteId maybePMId)
 
 
-handleFetchedData : Maybe Int -> Value -> Msg
-handleFetchedData maybeSiteId value =
+handleFetchedData : Maybe Int -> Maybe Id -> Value -> Msg
+handleFetchedData maybeSiteId maybePMId value =
     let
         fetchedData =
             Api.decodeFromChange value
@@ -74,13 +79,26 @@ handleFetchedData maybeSiteId value =
                     FetchedSites data.sites |> FetchingMsg
 
                 Just siteId ->
-                    FetchedSite
-                        (List.filter (\s -> s.id == siteId)
-                            data.sites.list
-                            |> List.head
-                        )
-                        data.playerManagers
-                        |> FetchingMsg
+                    let
+                        site =
+                            List.filter (\s -> s.id == siteId)
+                                data.sites.list
+                                |> List.head
+                    in
+                    case maybePMId of
+                        Nothing ->
+                            FetchedSite site
+                                data.playerManagers
+                                |> FetchingMsg
+
+                        Just pmId ->
+                            FetchedPC
+                                (data.playerManagers
+                                    |> List.filter (\x -> x.id == pmId)
+                                    |> List.head
+                                    |> Maybe.map (\x -> defaultPC siteId x)
+                                )
+                                |> FetchingMsg
 
         Err err ->
             FetchingMsg (FetchingError (Decode.errorToString err))
@@ -97,6 +115,9 @@ update msg model =
 
         ( MainPage site playerManagers, MasterMsg mMsg ) ->
             Master.update mMsg ( site, playerManagers )
+
+        ( PlayerManagerEditPage pmEdit, PMEditMsg ifMsg ) ->
+            PMEdit.update ifMsg pmEdit
 
         ( DetailPage pc, DetailMsg dMsg ) ->
             Detail.update dMsg pc
@@ -144,6 +165,10 @@ view model =
                 MainPage site playerManagers ->
                     Master.view site playerManagers
                         |> Html.map MasterMsg
+
+                PlayerManagerEditPage pmEdit ->
+                    PMEdit.view pmEdit
+                        |> Html.map PMEditMsg
 
                 Fetch fetchingState ->
                     div [ class Bulma.container ]

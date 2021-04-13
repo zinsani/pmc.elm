@@ -11,6 +11,7 @@ import Types
     exposing
         ( Data
         , Id(..)
+        , PC
         , Player
         , PlayerManager
         , PlayerOptions
@@ -34,7 +35,7 @@ port storeSite : Value -> Cmd msg
 port storePlayerManagers : Value -> Cmd msg
 
 
-port storePlayerManager : Value -> Cmd msg
+port storePlayerManager : ( Int, Value ) -> Cmd msg
 
 
 port onStoreChange : (Value -> msg) -> Sub msg
@@ -135,33 +136,33 @@ createId msg =
     Task.perform (handler msg) Time.now
 
 
-createNewPM : msg -> PlayerManager -> Site -> Cmd msg
-createNewPM msg pm site =
+createNewPM : msg -> PlayerManager -> Int -> Cmd msg
+createNewPM msg pm siteId =
     Cmd.batch
-        [ { site
-            | playerManagers = site.playerManagers ++ [ pm.id ]
-            , editingPM = Nothing
-            , listEditing = False
-            , lastInputPM = Just { pm | id = TempId }
-          }
-            |> siteEncoder
-            |> storeSite
-        , pm |> pmEncoder |> storePlayerManager
+        [ -- { site
+          -- | playerManagers = site.playerManagers ++ [ pm.id ]
+          -- , editingPM = Nothing
+          -- , listEditing = False
+          -- , lastInputPM = Just { pm | id = TempId }
+          -- }
+          -- |> siteEncoder
+          -- |> storeSite
+          pm |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
         , getResultAfter msg 0
         ]
 
 
-modifyPlayerManager : msg -> PlayerManager -> Site -> Cmd msg
-modifyPlayerManager msg pm site =
+modifyPlayerManager : msg -> PlayerManager -> Int -> Cmd msg
+modifyPlayerManager msg pm siteId =
     Cmd.batch
-        [ { site
-            | editingPM = Nothing
-            , listEditing = False
-            , lastInputPM = Just { pm | id = TempId }
-          }
-            |> siteEncoder
-            |> storeSite
-        , pm |> pmEncoder |> storePlayerManager
+        [ -- { site
+          -- | editingPM = Nothing
+          -- , listEditing = False
+          -- , lastInputPM = Just { pm | id = TempId }
+          -- }
+          -- |> siteEncoder
+          -- |> storeSite
+          pm |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
         , getResultAfter msg 0
         ]
 
@@ -303,6 +304,17 @@ defaultPlayerManager =
     , ipaddress = "192.168.100.1"
     , port_ = 11020
     , players = []
+    }
+
+
+defaultPC : Int -> PlayerManager -> PC
+defaultPC siteId playerManager =
+    { siteId = siteId
+    , playerManager = playerManager
+    , editingPlayer = Nothing
+    , selectedPlayerId = Nothing
+    , lastInputPlayer = Nothing
+    , listEditing = False
     }
 
 

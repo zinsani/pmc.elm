@@ -6,17 +6,34 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, a, button, div, i, input, label, p, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
-import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), Player, PlayerManager, PC)
+import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager)
 
 
-update : DetailMsg -> PC -> ( Model, Cmd msg )
+update : DetailMsg -> PC -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         BackToSite ->
             ( Fetch (FetchSite model.siteId), Api.fetch () )
 
+        GotNewPM newPM ->
+            ( Fetch (UpdateSite model.siteId)
+            , Api.createNewPM FetchingSite newPM model.siteId
+                |> Cmd.map FetchingMsg
+            )
+
+        GotModifiedPM newPM ->
+            ( Fetch (UpdatePC model.siteId newPM.id)
+            , Api.modifyPlayerManager (FetchingPC model.siteId) newPM model.siteId
+                |> Cmd.map FetchingMsg
+            )
+
         _ ->
             ( DetailPage model, Cmd.none )
+
+
+
+-- _ ->
+--     ( DetailPage model, Cmd.none )
 
 
 view : PC -> Html DetailMsg
@@ -156,7 +173,7 @@ viewPlayerManager model =
 
 viewHorizontalField : Html msg -> Html msg -> Html msg
 viewHorizontalField labelElem bodyElem =
-    div [ classList [Bulma.container, Bulma.pb4]]
+    div [ classList [ Bulma.container, Bulma.pb4 ] ]
         [ div [ classList [ Bulma.field, Bulma.isHorizontal ] ]
             [ div [ classList [ Bulma.fieldLabel, Bulma.isNormal ] ]
                 [ labelElem ]

@@ -63,15 +63,27 @@ app.ports.storePlayerManagers.subscribe(function (playerManagers) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 
-app.ports.storePlayerManager.subscribe(function (playerManager) {
-    console.log("storePlayerManager", playerManager);
+app.ports.storePlayerManager.subscribe(function ([siteId, playerManager]) {
+    console.log("storePlayerManager", siteId, playerManager);
 
   const current = getStoredData();
-  const playerManagers = current.playerManagers.find(pm => pm.id === playerManager.id) ? current.playerManagers.map(pm => pm.id ===playerManager.id ? playerManager : pm) : [...current.playerManagers, playerManager]; 
+  const siteList = current.sites.list.map(site => site.id === siteId ? 
+        { ... site, 
+            lastInputPM: {...playerManager, id: "temp" }, 
+            playerManagers: site.playerManagers.includes(playerManager.id) ? 
+            site.playerManagers 
+            : [...site.playerManagers, playerManager.id]} 
+        : site);
+
+  const playerManagers = current.playerManagers.find(pm => pm.id === playerManager.id) ? 
+        current.playerManagers.map(pm => pm.id ===playerManager.id ? 
+            playerManager 
+            : pm) 
+        : [...current.playerManagers, playerManager]; 
 
   console.log('new player managers', playerManagers);
 
-  const newVal = { ...current, playerManagers };
+  const newVal = { ...current, sites: {...current.sites, list: siteList }, playerManagers };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 

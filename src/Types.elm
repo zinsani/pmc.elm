@@ -38,20 +38,27 @@ type alias PC =
     , listEditing : Bool
     }
 
+type alias PlayerManagerEdit =
+    { siteId: Int
+    , playerManager: PlayerManager
+    }
 
 type Model
     = SiteListPage Sites
     | MainPage Site (List PlayerManager)
     | DetailPage PC
+    | PlayerManagerEditPage PlayerManagerEdit
     | Fetch FetchModel
 
 
 type FetchModel
     = FetchSites
     | FetchSite Int
+    | FetchPC Int Id
     | FetchErr String
     | UpdateSites
     | UpdateSite Int
+    | UpdatePC Int Id
 
 
 type SitesMsg
@@ -68,13 +75,9 @@ type SitesMsg
 
 type MasterMsg
     = ClickNewPM
-    | ClickSubmitPM
-    | ClickCancelPM
     | ClickDeletePM Id
-    | InputPMName String
     | BackToSiteList
     | ToggleEditModeOnMaster
-    | GotNewIdOfPM Id
     | SelectPM Id
 
 
@@ -82,8 +85,10 @@ type DetailMsg
     = ClickNewPlayer String
     | ClickSubmitPlayer
     | ClickCancelPlayer
-    | ClickDeletePMOnDetail 
+    | ClickDeletePMOnDetail
     | ClickDeletePlayer Id
+    | GotNewPM PlayerManager
+    | GotModifiedPM PlayerManager
     | StartEditingPM
     | EndEditingPM
     | InputPName String
@@ -98,7 +103,19 @@ type FetchingMsg
     | FetchedSites Sites
     | FetchingSite
     | FetchedSite (Maybe Site) (List PlayerManager)
+    | FetchingPC Int
+    | FetchedPC (Maybe PC)
     | FetchingError String
+
+type PMEditMsg 
+    = PMEditName String
+    | PMEditIpAddress String
+    | PMEditPort (Maybe Int)
+    | PMEditTimeoutSecondsToStartup (Maybe Float)
+    | PMEditSourcePath String
+    | PMEditMinimize Bool
+    | PMEditSubmit PlayerManager 
+    | PMEditCancel
 
 
 type Msg
@@ -106,6 +123,7 @@ type Msg
     | MasterMsg MasterMsg
     | DetailMsg DetailMsg
     | FetchingMsg FetchingMsg
+    | PMEditMsg PMEditMsg
 
 
 type Id
@@ -165,3 +183,4 @@ type InputValue
     | IntInput Int
     | FloatInput Float
     | BoolInput Bool
+

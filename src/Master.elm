@@ -3,10 +3,10 @@ module Master exposing (subscriptions, update, view)
 import Api exposing (defaultPlayerManager)
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
-import Html.Attributes exposing (class, style, type_, value)
-import Html.Events exposing (onClick, onInput)
-import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PC, Player, PlayerManager, Site)
+import Html exposing (Html, button, div, i, label, p, section, span, table, tbody, td, text, thead, tr)
+import Html.Attributes exposing (class, style)
+import Html.Events exposing (onClick)
+import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PlayerManager, Site)
 
 
 subscriptions : Site -> Sub MasterMsg
@@ -22,62 +22,13 @@ update msg ( site, playerManagers ) =
                 editingPM =
                     Maybe.withDefault
                         defaultPlayerManager
-                        site.lastInputPM
+                        (site.lastInputPM
+                        |> Debug.log "editing pm")
             in
-            ( MainPage
-                { site | editingPM = Just editingPM }
-                playerManagers
+            ( PlayerManagerEditPage
+                { siteId = site.id, playerManager = editingPM }
             , Cmd.none
             )
-
-        InputPMName name ->
-            let
-                editingPM =
-                    case site.editingPM of
-                        Just pm ->
-                            Just (Debug.log "editingPM" { pm | name = name })
-
-                        Nothing ->
-                            Just defaultPlayerManager
-            in
-            ( MainPage { site | editingPM = editingPM } playerManagers
-            , Cmd.none
-            )
-
-        ClickSubmitPM ->
-            case site.editingPM of
-                Just editingPM ->
-                    case editingPM.id of
-                        TempId ->
-                            ( MainPage site playerManagers
-                            , Api.createId GotNewIdOfPM |> Cmd.map MasterMsg
-                            )
-
-                        Id _ ->
-                            ( Fetch (UpdateSite site.id)
-                            , Api.modifyPlayerManager FetchingSite
-                                editingPM
-                                site
-                                |> Cmd.map FetchingMsg
-                            )
-
-                Nothing ->
-                    ( MainPage site playerManagers, Cmd.none )
-
-        GotNewIdOfPM newId ->
-            case site.editingPM of
-                Nothing ->
-                    ( MainPage site playerManagers, Cmd.none )
-
-                Just editingPM ->
-                    let
-                        newPM =
-                            { editingPM | id = newId }
-                    in
-                    ( Fetch (UpdateSite site.id)
-                    , Api.createNewPM FetchingSite newPM site
-                        |> Cmd.map FetchingMsg
-                    )
 
         SelectPM selectedId ->
             let
@@ -102,11 +53,6 @@ update msg ( site, playerManagers ) =
                 Nothing ->
                     ( MainPage site playerManagers, Cmd.none )
 
-        ClickCancelPM ->
-            ( MainPage { site | editingPM = Nothing } playerManagers
-            , Cmd.none
-            )
-
         ClickDeletePM pmId ->
             ( Fetch (UpdateSite site.id)
             , Api.deletePlayerManager FetchingSite pmId site playerManagers
@@ -124,21 +70,25 @@ update msg ( site, playerManagers ) =
 
 view : Site -> List PlayerManager -> Html MasterMsg
 view site playerManagers =
-    case site.editingPM of
-        Just editingPM ->
-            div [ class Bulma.container ]
-                [ viewActionBar site
-                , section [ class Bulma.section ]
-                    [ viewPMEdit editingPM
-                    ]
-                ]
-
-        Nothing ->
-            div [ class Bulma.container ]
-                [ viewActionBar site
-                , section [ class Bulma.section ]
-                    [ viewPlayerManagers site playerManagers ]
-                ]
+    -- case site.editingPM of
+    --     Just editingPM ->
+    --         let
+    --             editForm =
+    --                 viewPMEdit editingPM
+    --                     |> Html.map FormInput
+    --         in
+    --         div [ class Bulma.container ]
+    --             [ viewActionBar site
+    --             , section [ class Bulma.section ]
+    --                 [ editForm
+    --                 ]
+    --             ]
+    --     Nothing ->
+    div [ class Bulma.container ]
+        [ viewActionBar site
+        , section [ class Bulma.section ]
+            [ viewPlayerManagers site playerManagers ]
+        ]
 
 
 viewActionBar : Site -> Html MasterMsg
@@ -201,7 +151,7 @@ viewPlayerManagers : Site -> List PlayerManager -> Html MasterMsg
 viewPlayerManagers site playerManagers =
     let
         addNewButton classes =
-            List.concat [[ Bulma.isPrimary ] , classes]
+            List.concat [ [ Bulma.isPrimary ], classes ]
                 |> String.join " "
                 |> myButton
                     ClickNewPM
@@ -341,55 +291,4 @@ myButton msg label buttonType =
         , onClick msg
         ]
         [ text label
-        ]
-
-
-viewPMEdit : PlayerManager -> Html MasterMsg
-viewPMEdit pm =
-    div [ classList [ Bulma.container ] ]
-        [ inputText "Name" pm.name InputPMName
-        , div []
-            [ myButton ClickSubmitPM "Submit" Bulma.isPrimary
-            , myButton ClickCancelPM "Cancel" Bulma.isDanger
-            ]
-        ]
-
-
-inputText : String -> String -> (String -> msg) -> Html msg
-inputText label_ value_ msg =
-    div [ class Bulma.field ]
-        [ label [ class Bulma.label ]
-            [ text label_
-            ]
-        , div [ class Bulma.control ]
-            [ input
-                [ classList
-                    [ Bulma.input
-                    ]
-                , type_ "text"
-                , onInput msg
-                , value value_
-                ]
-                []
-            ]
-        ]
-
-
-playerControlButtonGroup : Player -> Html msg
-playerControlButtonGroup player =
-    div [ classList [ Bulma.buttons, Bulma.hasAddons ] ]
-        [ button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
-            [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
-        , button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
-            [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
-                [ i [ class "fa fa-stop" ] [] ]
-            ]
-        , button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
-            [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
-                [ i [ class "fa fa-play" ] [] ]
-            ]
-        , button [ classList [ Bulma.button, Bulma.isSmall, Bulma.isRounded ] ]
-            [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
-                [ i [ class "fa fa-upload" ] [] ]
-            ]
         ]
