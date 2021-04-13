@@ -6,7 +6,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, i, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
-import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PlayerManager, Site)
+import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PlayerManager, Site, UIMsg(..))
 
 
 subscriptions : Site -> Sub MasterMsg
@@ -17,18 +17,33 @@ subscriptions _ =
 update : MasterMsg -> ( Site, List PlayerManager ) -> ( Model, Cmd Msg )
 update msg ( site, playerManagers ) =
     case msg of
-        ClickNewPM ->
-            let
-                editingPM =
-                    Maybe.withDefault
-                        defaultPlayerManager
-                        (site.lastInputPM
-                        |> Debug.log "editing pm")
-            in
-            ( PlayerManagerEditPage
-                { siteId = site.id, playerManager = editingPM }
-            , Cmd.none
-            )
+        UIMsgOnMaster uiMsg ->
+            case uiMsg of
+                ClickNewPM ->
+                    let
+                        editingPM =
+                            Maybe.withDefault
+                                defaultPlayerManager
+                                (site.lastInputPM
+                                    |> Debug.log "editing pm"
+                                )
+                    in
+                    ( PlayerManagerEditPage
+                        { siteId = site.id, playerManager = editingPM }
+                    , Cmd.none
+                    )
+
+                ClickDeletePM pmId ->
+                    ( Fetch (UpdateSite site.id)
+                    , Api.deletePlayerManager FetchingSite pmId site.id
+                        |> Cmd.map FetchingMsg
+                    )
+
+                BackToSiteList ->
+                    ( Fetch FetchSites, Api.fetch () )
+
+                _ ->
+                    ( MainPage site playerManagers, Cmd.none )
 
         SelectPM selectedId ->
             let
@@ -53,37 +68,14 @@ update msg ( site, playerManagers ) =
                 Nothing ->
                     ( MainPage site playerManagers, Cmd.none )
 
-        ClickDeletePM pmId ->
-            ( Fetch (UpdateSite site.id)
-            , Api.deletePlayerManager FetchingSite pmId site playerManagers
-                |> Cmd.map FetchingMsg
-            )
-
-        BackToSiteList ->
-            ( Fetch FetchSites, Api.fetch () )
-
         ToggleEditModeOnMaster ->
             ( MainPage { site | listEditing = not site.listEditing } playerManagers
             , Cmd.none
             )
 
 
-view : Site -> List PlayerManager -> Html MasterMsg
+view : Site -> List PlayerManager -> Html Msg
 view site playerManagers =
-    -- case site.editingPM of
-    --     Just editingPM ->
-    --         let
-    --             editForm =
-    --                 viewPMEdit editingPM
-    --                     |> Html.map FormInput
-    --         in
-    --         div [ class Bulma.container ]
-    --             [ viewActionBar site
-    --             , section [ class Bulma.section ]
-    --                 [ editForm
-    --                 ]
-    --             ]
-    --     Nothing ->
     div [ class Bulma.container ]
         [ viewActionBar site
         , section [ class Bulma.section ]
@@ -91,7 +83,7 @@ view site playerManagers =
         ]
 
 
-viewActionBar : Site -> Html MasterMsg
+viewActionBar : Site -> Html Msg
 viewActionBar model =
     let
         viewTitle =
@@ -134,6 +126,7 @@ viewActionBar model =
         , viewTitle
         , settingButton
         ]
+        |> Html.map (UIMsgOnMaster >> MasterMsg)
 
 
 backButton : msg -> Html msg
@@ -147,7 +140,7 @@ backButton msg =
         ]
 
 
-viewPlayerManagers : Site -> List PlayerManager -> Html MasterMsg
+viewPlayerManagers : Site -> List PlayerManager -> Html Msg
 viewPlayerManagers site playerManagers =
     let
         addNewButton classes =
@@ -156,10 +149,12 @@ viewPlayerManagers site playerManagers =
                 |> myButton
                     ClickNewPM
                     "Add"
+                |> Html.map (UIMsgOnMaster >> MasterMsg)
 
         editButton =
             String.join " " [ Bulma.isWarning, Bulma.isSmall ]
                 |> myButton ToggleEditModeOnMaster "Edit"
+                |> Html.map MasterMsg
     in
     case List.length site.playerManagers of
         0 ->
@@ -205,7 +200,7 @@ viewPlayerManagers site playerManagers =
                 ]
 
 
-viewPlayerManager : Bool -> Int -> PlayerManager -> Html MasterMsg
+viewPlayerManager : Bool -> Int -> PlayerManager -> Html Msg
 viewPlayerManager listEditing index pm =
     let
         head =
@@ -223,6 +218,7 @@ viewPlayerManager listEditing index pm =
                             [ i [ class "fa fa-trash" ] [] ]
                         ]
                     ]
+                    |> Html.map (UIMsgOnMaster >> MasterMsg)
 
             else
                 span [ class Bulma.isSize6 ]
@@ -246,7 +242,7 @@ viewPlayerManager listEditing index pm =
         ]
 
 
-pmControlButtonGroup : PlayerManager -> Html MasterMsg
+pmControlButtonGroup : PlayerManager -> Html Msg
 pmControlButtonGroup pm =
     div [ class Bulma.columns ]
         [ div [ classList [ Bulma.column, Bulma.buttons, Bulma.hasAddons, Bulma.my0, Bulma.isNarrow ] ]
@@ -278,9 +274,10 @@ pmControlButtonGroup pm =
                 ]
             ]
         ]
+        |> Html.map MasterMsg
 
 
-myButton : MasterMsg -> String -> String -> Html MasterMsg
+myButton : msg -> String -> String -> Html msg
 myButton msg label buttonType =
     button
         [ classList

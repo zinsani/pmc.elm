@@ -62,9 +62,9 @@ update msg model =
                         |> Cmd.map DetailMsg
                     )
 
-                Id _ ->
-                    ( Fetch (UpdateSite model.siteId)
-                    , Api.modifyPlayerManager FetchingSite
+                Id pmId ->
+                    ( Fetch (UpdatePC model.siteId submitPM.id)
+                    , Api.modifyPlayerManager FetchingPC
                         submitPM
                         model.siteId
                         |> Cmd.map FetchingMsg

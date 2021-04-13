@@ -6,14 +6,31 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, a, button, div, i, input, label, p, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
-import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager)
+import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager, UIMsg(..))
 
 
 update : DetailMsg -> PC -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        BackToSite ->
-            ( Fetch (FetchSite model.siteId), Api.fetch () )
+        UIMsgOnDetail uiMsg ->
+            case uiMsg of
+                BackToSite ->
+                    ( Fetch (FetchSite model.siteId), Api.fetch () )
+
+                ClickEditingPM id ->
+                    ( PlayerManagerEditPage { siteId = model.siteId, playerManager = model.playerManager }, Cmd.none )
+
+                ClickDeletePM pmId ->
+                    ( Fetch (UpdateSite model.siteId)
+                    , Api.deletePlayerManager FetchingSite pmId model.siteId
+                        |> Cmd.map FetchingMsg
+                    )
+
+                BackToSiteList ->
+                    ( Fetch FetchSites, Api.fetch () )
+
+                _ ->
+                    ( DetailPage model, Cmd.none )
 
         GotNewPM newPM ->
             ( Fetch (UpdateSite model.siteId)
@@ -23,7 +40,7 @@ update msg model =
 
         GotModifiedPM newPM ->
             ( Fetch (UpdatePC model.siteId newPM.id)
-            , Api.modifyPlayerManager (FetchingPC model.siteId) newPM model.siteId
+            , Api.modifyPlayerManager FetchingPC newPM model.siteId
                 |> Cmd.map FetchingMsg
             )
 
@@ -31,12 +48,7 @@ update msg model =
             ( DetailPage model, Cmd.none )
 
 
-
--- _ ->
---     ( DetailPage model, Cmd.none )
-
-
-view : PC -> Html DetailMsg
+view : PC -> Html Msg
 view model =
     div [ class Bulma.container ]
         [ viewActionBar model
@@ -51,7 +63,7 @@ view model =
         ]
 
 
-viewActionBar : PC -> Html DetailMsg
+viewActionBar : PC -> Html Msg
 viewActionBar model =
     let
         viewTitle =
@@ -94,6 +106,7 @@ viewActionBar model =
         , viewTitle
         , settingButton
         ]
+        |> Html.map (UIMsgOnDetail >> DetailMsg)
 
 
 backButton : msg -> Html msg
@@ -107,7 +120,7 @@ backButton msg =
         ]
 
 
-viewPlayerManager : PlayerManager -> Html DetailMsg
+viewPlayerManager : PlayerManager -> Html Msg
 viewPlayerManager model =
     div [ classList [ Bulma.card ] ]
         [ div [ class Bulma.cardHeader ]
@@ -165,10 +178,11 @@ viewPlayerManager model =
                 )
             ]
         , div [ class Bulma.cardFooter ]
-            [ a [ class Bulma.cardFooterItem, href "#", onClick StartEditingPM ] [ text "Edit" ]
-            , a [ class Bulma.cardFooterItem, href "#", onClick ClickDeletePMOnDetail ] [ text "Delete" ]
+            [ a [ class Bulma.cardFooterItem, href "#", onClick (ClickEditingPM model.id) ] [ text "Edit" ]
+            , a [ class Bulma.cardFooterItem, href "#", onClick (ClickDeletePM model.id) ] [ text "Delete" ]
             ]
         ]
+        |> Html.map (UIMsgOnDetail >> DetailMsg)
 
 
 viewHorizontalField : Html msg -> Html msg -> Html msg

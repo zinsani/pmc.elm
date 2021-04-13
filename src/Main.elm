@@ -135,6 +135,9 @@ updateFetch msg model =
         ( UpdateSite siteId, _ ) ->
             ( Fetch (FetchSite siteId), Api.fetch () )
 
+        ( UpdatePC siteId pmId, _ ) ->
+            ( Fetch (FetchPC siteId pmId), Api.fetch () )
+
         ( FetchSites, FetchedSites sites ) ->
             ( SiteListPage sites, Cmd.none )
 
@@ -145,6 +148,12 @@ updateFetch msg model =
 
                 Nothing ->
                     ( Fetch (FetchErr "PM Model is not found"), Cmd.none )
+        ( FetchPC sitId pmId, FetchedPC maybePC ) ->
+            case maybePC of
+                Just newPC ->
+                    ( DetailPage newPC, Cmd.none )
+                Nothing ->
+                    ( Fetch (FetchErr "PC is not found"), Cmd.none )
 
         ( FetchErr err, _ ) ->
             ( Fetch (FetchErr err), Cmd.none )
@@ -164,7 +173,6 @@ view model =
 
                 MainPage site playerManagers ->
                     Master.view site playerManagers
-                        |> Html.map MasterMsg
 
                 PlayerManagerEditPage pmEdit ->
                     PMEdit.view pmEdit
@@ -184,7 +192,6 @@ view model =
 
                 DetailPage pc ->
                     Detail.view pc
-                        |> Html.map DetailMsg
 
         stylesheetBulma : Html msg
         stylesheetBulma =

@@ -38,10 +38,12 @@ type alias PC =
     , listEditing : Bool
     }
 
+
 type alias PlayerManagerEdit =
-    { siteId: Int
-    , playerManager: PlayerManager
+    { siteId : Int
+    , playerManager : PlayerManager
     }
+
 
 type Model
     = SiteListPage Sites
@@ -73,29 +75,31 @@ type SitesMsg
     | ToggleEditModeOnSites
 
 
-type MasterMsg
+type UIMsg
     = ClickNewPM
+    | ClickEditingPM Id
     | ClickDeletePM Id
     | BackToSiteList
-    | ToggleEditModeOnMaster
+    | ClickNewPlayer String
+    | ClickDeletePlayer Id
+    | BackToSite
+
+
+type MasterMsg
+    = ToggleEditModeOnMaster
     | SelectPM Id
+    | UIMsgOnMaster UIMsg
 
 
 type DetailMsg
-    = ClickNewPlayer String
-    | ClickSubmitPlayer
-    | ClickCancelPlayer
-    | ClickDeletePMOnDetail
-    | ClickDeletePlayer Id
-    | GotNewPM PlayerManager
+    = GotNewPM PlayerManager
     | GotModifiedPM PlayerManager
-    | StartEditingPM
     | EndEditingPM
     | InputPName String
     | ToggleEditModeOnDetail
     | GotNewIdOfPlayer Id
     | SelectPlayer Id
-    | BackToSite
+    | UIMsgOnDetail UIMsg
 
 
 type FetchingMsg
@@ -103,18 +107,19 @@ type FetchingMsg
     | FetchedSites Sites
     | FetchingSite
     | FetchedSite (Maybe Site) (List PlayerManager)
-    | FetchingPC Int
+    | FetchingPC
     | FetchedPC (Maybe PC)
     | FetchingError String
 
-type PMEditMsg 
+
+type PMEditMsg
     = PMEditName String
     | PMEditIpAddress String
     | PMEditPort (Maybe Int)
     | PMEditTimeoutSecondsToStartup (Maybe Float)
     | PMEditSourcePath String
     | PMEditMinimize Bool
-    | PMEditSubmit PlayerManager 
+    | PMEditSubmit PlayerManager
     | PMEditCancel
 
 
@@ -183,4 +188,3 @@ type InputValue
     | IntInput Int
     | FloatInput Float
     | BoolInput Bool
-

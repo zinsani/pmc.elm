@@ -38,6 +38,9 @@ port storePlayerManagers : Value -> Cmd msg
 port storePlayerManager : ( Int, Value ) -> Cmd msg
 
 
+port removePlayerManager : ( Int, Value ) -> Cmd msg
+
+
 port onStoreChange : (Value -> msg) -> Sub msg
 
 
@@ -139,15 +142,7 @@ createId msg =
 createNewPM : msg -> PlayerManager -> Int -> Cmd msg
 createNewPM msg pm siteId =
     Cmd.batch
-        [ -- { site
-          -- | playerManagers = site.playerManagers ++ [ pm.id ]
-          -- , editingPM = Nothing
-          -- , listEditing = False
-          -- , lastInputPM = Just { pm | id = TempId }
-          -- }
-          -- |> siteEncoder
-          -- |> storeSite
-          pm |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
+        [ pm |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
         , getResultAfter msg 0
         ]
 
@@ -155,41 +150,15 @@ createNewPM msg pm siteId =
 modifyPlayerManager : msg -> PlayerManager -> Int -> Cmd msg
 modifyPlayerManager msg pm siteId =
     Cmd.batch
-        [ -- { site
-          -- | editingPM = Nothing
-          -- , listEditing = False
-          -- , lastInputPM = Just { pm | id = TempId }
-          -- }
-          -- |> siteEncoder
-          -- |> storeSite
-          pm |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
+        [ pm |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
         , getResultAfter msg 0
         ]
 
 
-deletePlayerManager : msg -> Id -> Site -> List PlayerManager -> Cmd msg
-deletePlayerManager msg pmId site playerManagers =
-    let
-        _ =
-            pmId |> Debug.log "deletingPMId"
-
-        newPlayerManagers =
-            site.playerManagers
-                |> List.filter (\id -> id /= pmId)
-                |> Debug.log "remaining playerManagers"
-    in
+deletePlayerManager : msg -> Id -> Int -> Cmd msg
+deletePlayerManager msg pmId siteId =
     Cmd.batch
-        [ { site
-            | playerManagers = newPlayerManagers
-            , listEditing = False
-            , editingPM = Nothing
-          }
-            |> siteEncoder
-            |> storeSite
-        , playerManagers
-            |> List.filter (\p -> p.id /= pmId)
-            |> Encode.list pmEncoder
-            |> storePlayerManagers
+        [ pmId |> idEncoder |> Tuple.pair siteId |> removePlayerManager
         , getResultAfter msg 0
         ]
 

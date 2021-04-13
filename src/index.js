@@ -33,7 +33,7 @@ app.ports.storeSites.subscribe(function (sites) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 
-app.ports.storeSite.subscribe(function (newSite) {
+app.ports.storeSite?.subscribe(function (newSite) {
   const current = getStoredData();
   const found = current.sites?.list.find(s => s.id == newSite.id);
 
@@ -57,9 +57,11 @@ app.ports.fetch.subscribe(function () {
   }, 0);
 });
 
-app.ports.storePlayerManagers.subscribe(function (playerManagers) {
+app.ports.storePlayerManagers?.subscribe(function (playerManagers) {
   const current = getStoredData();
-  const newVal = { ...current, playerManagers };
+  const siteList = current.list.map(site => ({...site, playerManagers: site.playerManagers.filter(pmId => playerManagers.includes(p => p.id === pmId))}));
+    
+  const newVal = { ...current, sites: { ...sites, list: siteList}, playerManagers };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
 });
 
@@ -80,6 +82,23 @@ app.ports.storePlayerManager.subscribe(function ([siteId, playerManager]) {
             playerManager 
             : pm) 
         : [...current.playerManagers, playerManager]; 
+
+  console.log('new player managers', playerManagers);
+
+  const newVal = { ...current, sites: {...current.sites, list: siteList }, playerManagers };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newVal));
+});
+
+app.ports.removePlayerManager.subscribe(function ([siteId, pmIdToRemove]) {
+    console.log("removePlayerManager", siteId, pmIdToRemove);
+
+  const current = getStoredData();
+  const siteList = current.sites.list.map(site => site.id === siteId ? 
+        { ... site, 
+            playerManagers: site.playerManagers.filter(pmId => pmId !== pmIdToRemove)} 
+        : site);
+
+  const playerManagers = current.playerManagers.filter(pm => pm.id !== pmIdToRemove) 
 
   console.log('new player managers', playerManagers);
 
