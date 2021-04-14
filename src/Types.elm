@@ -129,7 +129,6 @@ type PMEditMsg
 
 type PEditMsg
     = PEditName String
-    | PEditParentId String
     | PEditDirectory String
     | PEditExeFileName String
     | PEditSourceDir String
