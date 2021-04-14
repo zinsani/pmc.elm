@@ -177,7 +177,7 @@ viewPlayerManagers site playerManagers =
                             , td [ style "width" "30%" ] [ text "Name" ]
                             , td [ style "width" "30%" ] [ text "Location" ]
                             , td [ style "width" "30%" ]
-                                [ div [ class Bulma.buttons ]
+                                [ div [ classList [ Bulma.buttons, Bulma.isRight, Bulma.pr5 ] ]
                                     [ addNewButton [ Bulma.isSmall ]
                                     , editButton
                                     ]
@@ -237,41 +237,47 @@ viewPlayerManager listEditing index pm =
                 [ pm.ipaddress ++ ":" ++ String.fromInt pm.port_ |> text ]
             ]
         , td []
-            [ pmControlButtonGroup pm
+            [ viewControlButtonGroup pm
             ]
         ]
 
 
-pmControlButtonGroup : PlayerManager -> Html Msg
-pmControlButtonGroup pm =
-    div [ class Bulma.columns ]
-        [ div [ classList [ Bulma.column, Bulma.buttons, Bulma.hasAddons, Bulma.my0, Bulma.isNarrow ] ]
-            [ button [ classList [ Bulma.button, Bulma.isSmall ] ]
-                [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
-            , button [ classList [ Bulma.button, Bulma.isSmall ] ]
-                [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
-                    [ i [ class "fa fa-stop" ] [] ]
+viewControlButtonGroup : PlayerManager -> Html Msg
+viewControlButtonGroup pm =
+    div
+        [ classList
+            [ Bulma.buttons
+            , Bulma.hasAddons
+            , Bulma.my0
+            , Bulma.isFull
+            , Bulma.isRight
+            ]
+        ]
+        [ button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
+        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
+                [ i [ class "fa fa-stop" ] [] ]
+            ]
+        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
+                [ i [ class "fa fa-play" ] [] ]
+            ]
+        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
+                [ i [ class "fa fa-upload" ] [] ]
+            ]
+        , button
+            [ classList
+                [ Bulma.isPulledRight
+                , Bulma.button
+                , Bulma.isSmall
+                , Bulma.isWhite
                 ]
-            , button [ classList [ Bulma.button, Bulma.isSmall ] ]
-                [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
-                    [ i [ class "fa fa-play" ] [] ]
-                ]
-            , button [ classList [ Bulma.button, Bulma.isSmall ] ]
-                [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
-                    [ i [ class "fa fa-upload" ] [] ]
-                ]
-            , button
-                [ classList
-                    [ Bulma.isPulledRight
-                    , Bulma.button
-                    , Bulma.isSmall
-                    , Bulma.isWhite
-                    ]
-                , onClick (SelectPM pm.id)
-                ]
-                [ span [ classList [ Bulma.icon ] ]
-                    [ i [ class "fa fa-chevron-right" ] [] ]
-                ]
+            , onClick (SelectPM pm.id)
+            ]
+            [ span [ classList [ Bulma.icon ] ]
+                [ i [ class "fa fa-chevron-right" ] [] ]
             ]
         ]
         |> Html.map MasterMsg

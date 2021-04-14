@@ -3,7 +3,7 @@ module Site exposing (..)
 import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, button, div, h1, i, input, label, span, table, tbody, td, text, th, thead, tr)
+import Html exposing (Html, button, div, h1, i, input, label, section, span, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, hidden, placeholder, style, type_, value)
 import Html.Events exposing (onBlur, onCheck, onClick, onDoubleClick, onInput)
 import Types exposing (FetchModel(..), FetchingMsg(..), Model(..), Msg(..), Site, Sites, SitesMsg(..))
@@ -12,39 +12,41 @@ import Types exposing (FetchModel(..), FetchingMsg(..), Model(..), Msg(..), Site
 view : Sites -> Html SitesMsg
 view model =
     div [ class Bulma.container ]
-        [ div [ classList [ Bulma.columns, Bulma.isCentered ] ]
-            [ div [ classList [ Bulma.column, Bulma.box, Bulma.isHalf ] ]
-                [ div [ classList [ Bulma.mb4, Bulma.px3 ] ]
-                    [ h1 [ class Bulma.title ] [ text "Site List" ]
-                    ]
-                , div [ classList [ Bulma.field, Bulma.hasAddons, Bulma.px3 ] ]
-                    [ div [ classList [ Bulma.control, Bulma.isExpanded ] ]
-                        [ input
-                            [ class Bulma.input
-                            , type_ "text"
-                            , placeholder "Site Name"
-                            , onInput InputSiteName
-                            , value model.newSiteName
-                            ]
-                            []
+        [ section [ class Bulma.section ]
+            [ div [ classList [ Bulma.columns, Bulma.isCentered ] ]
+                [ div [ classList [ Bulma.column, Bulma.box, Bulma.isHalf ] ]
+                    [ div [ classList [ Bulma.mb4, Bulma.px3 ] ]
+                        [ h1 [ class Bulma.title ] [ text "Site List" ]
                         ]
-                    , div [ class Bulma.control ]
-                        [ button
-                            [ classList [ Bulma.button, Bulma.isPrimary ]
-                            , onClick <| ClickNewSite model.newSiteName
-                            , String.length model.newSiteName == 0 |> disabled
+                    , div [ classList [ Bulma.field, Bulma.hasAddons, Bulma.px3 ] ]
+                        [ div [ classList [ Bulma.control, Bulma.isExpanded ] ]
+                            [ input
+                                [ class Bulma.input
+                                , type_ "text"
+                                , placeholder "Site Name"
+                                , onInput InputSiteName
+                                , value model.newSiteName
+                                ]
+                                []
                             ]
-                            [ text "New"
+                        , div [ class Bulma.control ]
+                            [ button
+                                [ classList [ Bulma.button, Bulma.isPrimary ]
+                                , onClick <| ClickNewSite model.newSiteName
+                                , String.length model.newSiteName == 0 |> disabled
+                                ]
+                                [ text "New"
+                                ]
                             ]
                         ]
-                    ]
-                , viewContent model
-                , div [ class Bulma.hasTextRight, hidden <| List.isEmpty model.list ]
-                    [ label [ classList [ Bulma.checkbox, Bulma.isToggle ] ]
-                        [ input
-                            [ type_ "checkbox", onCheck ToggleSaveSelection, checked <| model.saveSelection ]
-                            []
-                        , text "Save Selection"
+                    , viewContent model
+                    , div [ class Bulma.hasTextRight, hidden <| List.isEmpty model.list ]
+                        [ label [ classList [ Bulma.checkbox, Bulma.isToggle ] ]
+                            [ input
+                                [ type_ "checkbox", onCheck ToggleSaveSelection, checked <| model.saveSelection ]
+                                []
+                            , text "Save Selection"
+                            ]
                         ]
                     ]
                 ]

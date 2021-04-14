@@ -3,7 +3,7 @@ module Detail exposing (..)
 import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, a, button, div, i, input, label, p, span, table, tbody, td, text, thead, tr)
+import Html exposing (Html, a, button, div, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
 import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager, UIMsg(..))
@@ -52,7 +52,7 @@ view : PC -> Html Msg
 view model =
     div [ class Bulma.container ]
         [ viewActionBar model
-        , div [] [ viewPlayerManager model.playerManager ]
+        , section [ class Bulma.section ] [ viewPlayerManager model.playerManager ]
         , table [ class Bulma.table ]
             [ thead [] []
             , tbody []
