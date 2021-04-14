@@ -6,6 +6,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, form, i, input, label, p, section, span, text)
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onCheck, onClick, onInput, onSubmit)
+import Shared.UI exposing (viewActionBar, viewHorizontalField)
 import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), PMEditMsg(..), PlayerManager, PlayerManagerEdit)
 
 
@@ -86,7 +87,7 @@ view model =
             model.playerManager
     in
     div [ class Bulma.container ]
-        [ viewActionBar model
+        [ viewActionBar ("PC: " ++ model.playerManager.name) PMEditCancel
         , section [ class Bulma.section ]
             [ form [ class Bulma.container, onSubmit (pm |> PMEditSubmit) ]
                 [ viewHorizontalField
@@ -170,74 +171,4 @@ view model =
                     ]
                 ]
             ]
-        ]
-
-
-viewHorizontalField : Html msg -> Html msg -> Html msg
-viewHorizontalField labelElem bodyElem =
-    div [ classList [ Bulma.container, Bulma.pb4 ] ]
-        [ div [ classList [ Bulma.field, Bulma.isHorizontal ] ]
-            [ div [ classList [ Bulma.fieldLabel, Bulma.isNormal ] ]
-                [ labelElem ]
-            , div [ classList [ Bulma.fieldBody ] ]
-                [ p [ classList [ Bulma.field, Bulma.isExpanded ] ]
-                    [ bodyElem ]
-                ]
-            ]
-        ]
-
-
-viewActionBar : PlayerManagerEdit -> Html PMEditMsg
-viewActionBar model =
-    let
-        viewTitle =
-            span [ class Bulma.isSize4 ]
-                [ "Edit PC: " ++ model.playerManager.name |> text
-                ]
-
-        settingButton : Html msg
-        settingButton =
-            button
-                [ classList
-                    [ Bulma.button
-                    , "is-pulled-right"
-                    ]
-                ]
-                [ span
-                    [ class Bulma.icon
-                    ]
-                    [ i
-                        [ classList
-                            [ Bulma.fa
-                            , "fa-cog"
-                            ]
-                        ]
-                        []
-                    ]
-                ]
-    in
-    div
-        [ classList
-            [ Bulma.container
-            , Bulma.px3
-            , Bulma.py3
-            , Bulma.isVcentered
-            , Bulma.isFull
-            , Bulma.hasBackgroundLight
-            ]
-        ]
-        [ backButton PMEditCancel
-        , viewTitle
-        , settingButton
-        ]
-
-
-backButton : msg -> Html msg
-backButton msg =
-    button
-        [ classList [ Bulma.button, Bulma.isRounded, Bulma.isLight, Bulma.mr4 ]
-        , onClick msg
-        ]
-        [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
-            [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
         ]

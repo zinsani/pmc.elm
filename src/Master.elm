@@ -6,6 +6,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, i, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
+import Shared.UI exposing (viewActionBar)
 import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PlayerManager, Site, UIMsg(..))
 
 
@@ -19,7 +20,7 @@ update msg ( site, playerManagers ) =
     case msg of
         UIMsgOnMaster uiMsg ->
             case uiMsg of
-                ClickNewPM ->
+                ClickNew ->
                     let
                         editingPM =
                             Maybe.withDefault
@@ -33,13 +34,13 @@ update msg ( site, playerManagers ) =
                     , Cmd.none
                     )
 
-                ClickDeletePM pmId ->
+                ClickDelete pmId ->
                     ( Fetch (UpdateSite site.id)
                     , Api.deletePlayerManager FetchingSite pmId site.id
                         |> Cmd.map FetchingMsg
                     )
 
-                BackToSiteList ->
+                ClickBack ->
                     ( Fetch FetchSites, Api.fetch () )
 
                 _ ->
@@ -77,67 +78,12 @@ update msg ( site, playerManagers ) =
 view : Site -> List PlayerManager -> Html Msg
 view site playerManagers =
     div [ class Bulma.container ]
-        [ viewActionBar site
+        [ viewActionBar ("Site: " ++ site.name) ClickBack |> Html.map(UIMsgOnMaster >> MasterMsg)
         , section [ class Bulma.section ]
             [ viewPlayerManagers site playerManagers ]
         ]
 
 
-viewActionBar : Site -> Html Msg
-viewActionBar model =
-    let
-        viewTitle =
-            span [ class Bulma.isSize4 ]
-                [ "Site: " ++ model.name |> text
-                ]
-
-        settingButton : Html msg
-        settingButton =
-            button
-                [ classList
-                    [ Bulma.button
-                    , "is-pulled-right"
-                    ]
-                ]
-                [ span
-                    [ class Bulma.icon
-                    ]
-                    [ i
-                        [ classList
-                            [ Bulma.fa
-                            , "fa-cog"
-                            ]
-                        ]
-                        []
-                    ]
-                ]
-    in
-    div
-        [ classList
-            [ Bulma.container
-            , Bulma.px3
-            , Bulma.py3
-            , Bulma.isVcentered
-            , Bulma.isFull
-            , Bulma.hasBackgroundLight
-            ]
-        ]
-        [ backButton BackToSiteList
-        , viewTitle
-        , settingButton
-        ]
-        |> Html.map (UIMsgOnMaster >> MasterMsg)
-
-
-backButton : msg -> Html msg
-backButton msg =
-    button
-        [ classList [ Bulma.button, Bulma.isRounded, Bulma.isLight, Bulma.mr4 ]
-        , onClick msg
-        ]
-        [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
-            [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
-        ]
 
 
 viewPlayerManagers : Site -> List PlayerManager -> Html Msg
@@ -147,7 +93,7 @@ viewPlayerManagers site playerManagers =
             List.concat [ [ Bulma.isPrimary ], classes ]
                 |> String.join " "
                 |> myButton
-                    ClickNewPM
+                    ClickNew
                     "Add"
                 |> Html.map (UIMsgOnMaster >> MasterMsg)
 
@@ -212,7 +158,7 @@ viewPlayerManager listEditing index pm =
                             , Bulma.isSmall
                             , Bulma.hasTextDanger
                             ]
-                        , onClick (ClickDeletePM pm.id)
+                        , onClick (ClickDelete pm.id)
                         ]
                         [ span [ class Bulma.icon ]
                             [ i [ class "fa fa-trash" ] [] ]

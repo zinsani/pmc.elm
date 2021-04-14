@@ -45,11 +45,18 @@ type alias PlayerManagerEdit =
     }
 
 
+type alias PlayerEdit =
+    { siteId : Int
+    , player : Player
+    }
+
+
 type Model
     = SiteListPage Sites
     | MainPage Site (List PlayerManager)
     | DetailPage PC
     | PlayerManagerEditPage PlayerManagerEdit
+    | PlayerEditPage PlayerEdit
     | Fetch FetchModel
 
 
@@ -76,13 +83,10 @@ type SitesMsg
 
 
 type UIMsg
-    = ClickNewPM
-    | ClickEditingPM Id
-    | ClickDeletePM Id
-    | BackToSiteList
-    | ClickNewPlayer String
-    | ClickDeletePlayer Id
-    | BackToSite
+    = ClickNew
+    | ClickEdit Id
+    | ClickDelete Id
+    | ClickBack
 
 
 type MasterMsg
@@ -123,12 +127,28 @@ type PMEditMsg
     | PMEditCancel
 
 
+type PEditMsg
+    = PEditName String
+    | PEditParentId String
+    | PEditDirectory String
+    | PEditExeFileName String
+    | PEditSourceDir String
+    | PEditParameters String
+    | PEditDelaySecondsToStart (Maybe Float)
+    | PEditExcludeFiles String
+    | PEditExcludeDirectories String
+    | PEditLogDir String
+    | PEditSubmit Player
+    | PEditCancel
+
+
 type Msg
     = SitesMsg SitesMsg
     | MasterMsg MasterMsg
     | DetailMsg DetailMsg
     | FetchingMsg FetchingMsg
     | PMEditMsg PMEditMsg
+    | PEditMsg PEditMsg
 
 
 type Id

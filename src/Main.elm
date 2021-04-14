@@ -3,14 +3,14 @@ module Main exposing (main)
 import Api exposing (defaultPC)
 import Bulma.Classes as Bulma
 import Detail
+import Form.Player as PlayerEdit
 import Form.PlayerManager as PMEdit
 import Html exposing (Html, div, node, text)
 import Html.Attributes exposing (class, href, rel, value)
 import Json.Decode as Decode exposing (Value)
 import Master
 import Site
-import Types exposing (Data, FetchModel(..), FetchingMsg(..), MasterMsg(..), Model(..), Msg(..), PMEditMsg(..), SitesMsg(..))
-import Types exposing (Id(..))
+import Types exposing (Data, FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PMEditMsg(..), SitesMsg(..))
 
 
 init : Maybe Data -> ( Model, Cmd Msg )
@@ -57,10 +57,10 @@ subscriptions model =
                             ( Just siteId, Just pmId )
 
                         _ ->
-                            (Nothing, Nothing)
+                            ( Nothing, Nothing )
 
                 _ ->
-                    (Nothing, Nothing)
+                    ( Nothing, Nothing )
     in
     Api.onStoreChange
         (handleFetchedData maybeSiteId maybePMId)
@@ -116,8 +116,11 @@ update msg model =
         ( MainPage site playerManagers, MasterMsg mMsg ) ->
             Master.update mMsg ( site, playerManagers )
 
-        ( PlayerManagerEditPage pmEdit, PMEditMsg ifMsg ) ->
-            PMEdit.update ifMsg pmEdit
+        ( PlayerManagerEditPage pmEdit, PMEditMsg pmeMsg ) ->
+            PMEdit.update pmeMsg pmEdit
+
+        ( PlayerEditPage pEdit, PEditMsg peMsg ) ->
+            PlayerEdit.update peMsg pEdit
 
         ( DetailPage pc, DetailMsg dMsg ) ->
             Detail.update dMsg pc
@@ -148,10 +151,12 @@ updateFetch msg model =
 
                 Nothing ->
                     ( Fetch (FetchErr "PM Model is not found"), Cmd.none )
+
         ( FetchPC sitId pmId, FetchedPC maybePC ) ->
             case maybePC of
                 Just newPC ->
                     ( DetailPage newPC, Cmd.none )
+
                 Nothing ->
                     ( Fetch (FetchErr "PC is not found"), Cmd.none )
 
@@ -177,6 +182,9 @@ view model =
                 PlayerManagerEditPage pmEdit ->
                     PMEdit.view pmEdit
                         |> Html.map PMEditMsg
+
+                PlayerEditPage pEdit ->
+                    PlayerEdit.view pEdit
 
                 Fetch fetchingState ->
                     div [ class Bulma.container ]

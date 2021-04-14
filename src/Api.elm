@@ -276,6 +276,25 @@ defaultPlayerManager =
     }
 
 
+defaultPlayer : Id -> Player
+defaultPlayer parentId =
+    { id = TempId
+    , name = "New Player"
+    , parentId = parentId
+    , directory = "c:/ezwith/player"
+    , exeFileName = Nothing
+    , sourceDir = "player"
+    , options =
+        { parameters = Nothing
+        , delaySecondsToStart = 0
+        , watchDogEnabled = True
+        , excludeFiles = Nothing
+        , excludeDirectories = Nothing
+        , logDir = Nothing
+        }
+    }
+
+
 defaultPC : Int -> PlayerManager -> PC
 defaultPC siteId playerManager =
     { siteId = siteId

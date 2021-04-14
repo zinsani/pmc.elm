@@ -6,6 +6,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, a, button, div, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
+import Shared.UI exposing (viewActionBar, viewHorizontalField)
 import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager, UIMsg(..))
 
 
@@ -14,23 +15,29 @@ update msg model =
     case msg of
         UIMsgOnDetail uiMsg ->
             case uiMsg of
-                BackToSite ->
+                ClickNew ->
+                    let
+                        newPlayer =
+                            Api.defaultPlayer model.playerManager.id
+                    in
+                    ( PlayerEditPage
+                        { siteId = model.siteId
+                        , player = newPlayer
+                        }
+                    , Cmd.none
+                    )
+
+                ClickBack ->
                     ( Fetch (FetchSite model.siteId), Api.fetch () )
 
-                ClickEditingPM id ->
+                ClickEdit _ ->
                     ( PlayerManagerEditPage { siteId = model.siteId, playerManager = model.playerManager }, Cmd.none )
 
-                ClickDeletePM pmId ->
+                ClickDelete pmId ->
                     ( Fetch (UpdateSite model.siteId)
                     , Api.deletePlayerManager FetchingSite pmId model.siteId
                         |> Cmd.map FetchingMsg
                     )
-
-                BackToSiteList ->
-                    ( Fetch FetchSites, Api.fetch () )
-
-                _ ->
-                    ( DetailPage model, Cmd.none )
 
         GotNewPM newPM ->
             ( Fetch (UpdateSite model.siteId)
@@ -50,74 +57,59 @@ update msg model =
 
 view : PC -> Html Msg
 view model =
-    div [ class Bulma.container ]
-        [ viewActionBar model
-        , section [ class Bulma.section ] [ viewPlayerManager model.playerManager ]
-        , table [ class Bulma.table ]
-            [ thead [] []
-            , tbody []
-                (model.playerManager.players
-                    |> List.map viewPlayer
-                )
-            ]
-        ]
-
-
-viewActionBar : PC -> Html Msg
-viewActionBar model =
     let
-        viewTitle =
-            span [ class Bulma.isSize4 ]
-                [ "PC: " ++ model.playerManager.name |> text
-                ]
-
-        settingButton : Html msg
-        settingButton =
-            button
-                [ classList
-                    [ Bulma.button
-                    , "is-pulled-right"
-                    ]
-                ]
-                [ span
-                    [ class Bulma.icon
-                    ]
-                    [ i
-                        [ classList
-                            [ Bulma.fa
-                            , "fa-cog"
-                            ]
-                        ]
-                        []
-                    ]
-                ]
+        actionBar =
+            viewActionBar ("PC: " ++ model.playerManager.name) ClickBack
+                |> Html.map (UIMsgOnDetail >> DetailMsg)
     in
-    div
+    div [ class Bulma.container ]
+        [ actionBar
+        , section [ class Bulma.section ] [ viewPlayerManager model.playerManager ]
+        , viewPlayers model.playerManager.players
+        ]
+
+
+myButton : msg -> String -> String -> Html msg
+myButton msg label buttonType =
+    button
         [ classList
-            [ Bulma.container
-            , Bulma.px3
-            , Bulma.py3
-            , Bulma.isVcentered
-            , Bulma.isFull
-            , Bulma.hasBackgroundLight
+            [ Bulma.button
+            , buttonType
+            , Bulma.mx1
             ]
+        , onClick msg
         ]
-        [ backButton BackToSite
-        , viewTitle
-        , settingButton
+        [ text label
         ]
+
+
+addNewButton : List String -> Html Msg
+addNewButton classes =
+    List.concat [ [ Bulma.isPrimary ], classes ]
+        |> String.join " "
+        |> myButton
+            ClickNew
+            "Add"
         |> Html.map (UIMsgOnDetail >> DetailMsg)
 
 
-backButton : msg -> Html msg
-backButton msg =
-    button
-        [ classList [ Bulma.button, Bulma.isRounded, Bulma.isLight, Bulma.mr4 ]
-        , onClick msg
-        ]
-        [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
-            [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
-        ]
+viewPlayers : List Player -> Html Msg
+viewPlayers players =
+    if List.isEmpty players then
+        div [ class Bulma.container ]
+            [ p [ class Bulma.isSize5 ]
+                [ text "Please create a new PlayerManager." ]
+            , addNewButton []
+            ]
+
+    else
+        table [ class Bulma.table ]
+            [ thead [] []
+            , tbody []
+                (players
+                    |> List.map viewPlayer
+                )
+            ]
 
 
 viewPlayerManager : PlayerManager -> Html Msg
@@ -178,25 +170,11 @@ viewPlayerManager model =
                 )
             ]
         , div [ class Bulma.cardFooter ]
-            [ a [ class Bulma.cardFooterItem, href "#", onClick (ClickEditingPM model.id) ] [ text "Edit" ]
-            , a [ class Bulma.cardFooterItem, href "#", onClick (ClickDeletePM model.id) ] [ text "Delete" ]
+            [ a [ class Bulma.cardFooterItem, href "#", onClick (ClickEdit model.id) ] [ text "Edit" ]
+            , a [ class Bulma.cardFooterItem, href "#", onClick (ClickDelete model.id) ] [ text "Delete" ]
             ]
         ]
         |> Html.map (UIMsgOnDetail >> DetailMsg)
-
-
-viewHorizontalField : Html msg -> Html msg -> Html msg
-viewHorizontalField labelElem bodyElem =
-    div [ classList [ Bulma.container, Bulma.pb4 ] ]
-        [ div [ classList [ Bulma.field, Bulma.isHorizontal ] ]
-            [ div [ classList [ Bulma.fieldLabel, Bulma.isNormal ] ]
-                [ labelElem ]
-            , div [ classList [ Bulma.fieldBody ] ]
-                [ p [ classList [ Bulma.field, Bulma.isExpanded ] ]
-                    [ bodyElem ]
-                ]
-            ]
-        ]
 
 
 viewProperty : Bool -> String -> InputValue -> Html msg
