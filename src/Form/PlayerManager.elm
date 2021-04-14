@@ -6,7 +6,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, form, i, input, label, p, section, span, text)
 import Html.Attributes exposing (checked, class, type_, value)
 import Html.Events exposing (onCheck, onClick, onInput, onSubmit)
-import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), MasterMsg, Model(..), Msg(..), PMEditMsg(..), PlayerManager, PlayerManagerEdit)
+import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), Model(..), Msg(..), PMEditMsg(..), PlayerManager, PlayerManagerEdit)
 
 
 
@@ -62,7 +62,7 @@ update msg model =
                         |> Cmd.map DetailMsg
                     )
 
-                Id pmId ->
+                Id _ ->
                     ( Fetch (UpdatePC model.siteId submitPM.id)
                     , Api.modifyPlayerManager FetchingPC
                         submitPM
@@ -71,7 +71,12 @@ update msg model =
                     )
 
         PMEditCancel ->
-            ( Fetch (FetchSite model.siteId), Api.fetch () )
+            case pm.id of
+                TempId ->
+                    ( Fetch (FetchSite model.siteId), Api.fetch () )
+
+                Id _ ->
+                    ( Fetch (FetchPC model.siteId pm.id), Api.fetch () )
 
 
 view : PlayerManagerEdit -> Html PMEditMsg
