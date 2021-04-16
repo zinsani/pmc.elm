@@ -15,6 +15,17 @@ update msg model =
     case msg of
         UIMsgOnDetailPM uiMsg ->
             case uiMsg of
+                ClickDelete pmId ->
+                    ( Fetch (UpdateSite model.siteId)
+                    , Api.deletePlayerManager FetchingSite pmId model.siteId
+                        |> Cmd.map FetchingMsg
+                    )
+
+                _ ->
+                    ( DetailPage model, Cmd.none )
+
+        UIMsgOnDetailPlayer uiMsg ->
+            case uiMsg of
                 ClickNew ->
                     let
                         newPlayer =
@@ -34,22 +45,11 @@ update msg model =
                 ClickEdit _ ->
                     ( PlayerManagerEditPage { siteId = model.siteId, playerManager = model.playerManager }, Cmd.none )
 
-                ClickDelete pmId ->
-                    ( Fetch (UpdateSite model.siteId)
-                    , Api.deletePlayerManager FetchingSite pmId model.siteId
-                        |> Cmd.map FetchingMsg
-                    )
-
-        UIMsgOnDetailPlayer uiMsg ->
-            case uiMsg of
                 ClickDelete playerId ->
                     ( Fetch (UpdatePC model.siteId model.playerManager.id)
                     , Api.deletePlayer FetchingSite playerId model.playerManager model.siteId
                         |> Cmd.map FetchingMsg
                     )
-
-                _ ->
-                    ( DetailPage model, Cmd.none )
 
         GotNewPM newPM ->
             ( Fetch (UpdateSite model.siteId)
@@ -78,7 +78,7 @@ view model =
     let
         actionBar =
             viewActionBar ("PC: " ++ model.playerManager.name) ClickBack
-                |> Html.map (UIMsgOnDetailPM >> DetailMsg)
+                |> Html.map (UIMsgOnDetailPlayer >> DetailMsg)
     in
     div [ class Bulma.container ]
         [ actionBar
@@ -94,7 +94,7 @@ addNewButton classes =
         |> myButton
             ClickNew
             "Add"
-        |> Html.map (UIMsgOnDetailPM >> DetailMsg)
+        |> Html.map (UIMsgOnDetailPlayer >> DetailMsg)
 
 
 viewPlayers : PC -> Html Msg
