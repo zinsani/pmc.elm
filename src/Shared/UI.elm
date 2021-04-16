@@ -5,6 +5,10 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, i, p, span, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
+import Types exposing (PlayerManager)
+import Types exposing (Msg(..))
+import Types exposing (MasterMsg(..))
+import Types exposing (Id(..))
 
 
 viewHorizontalField : Html msg -> Html msg -> Html msg
@@ -74,4 +78,56 @@ backButton msg =
         ]
         [ span [ classList [ Bulma.icon, Bulma.isSmall ] ]
             [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
+        ]
+
+myButton : msg -> String -> String -> Html msg
+myButton msg label buttonType =
+    button
+        [ classList
+            [ Bulma.button
+            , buttonType
+            , Bulma.mx1
+            ]
+        , onClick msg
+        ]
+        [ text label
+        ]
+
+viewControlButtonGroup : Id -> (Id -> msg) -> Html msg
+viewControlButtonGroup id msg =
+    div
+        [ classList
+            [ Bulma.buttons
+            , Bulma.hasAddons
+            , Bulma.my0
+            , Bulma.isFull
+            , Bulma.isRight
+            ]
+        ]
+        [ button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
+        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
+                [ i [ class "fa fa-stop" ] [] ]
+            ]
+        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
+                [ i [ class "fa fa-play" ] [] ]
+            ]
+        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
+            [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
+                [ i [ class "fa fa-upload" ] [] ]
+            ]
+        , button
+            [ classList
+                [ Bulma.isPulledRight
+                , Bulma.button
+                , Bulma.isSmall
+                , Bulma.isWhite
+                ]
+            , onClick (msg id)
+            ]
+            [ span [ classList [ Bulma.icon ] ]
+                [ i [ class "fa fa-chevron-right" ] [] ]
+            ]
         ]

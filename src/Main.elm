@@ -185,6 +185,7 @@ view model =
 
                 PlayerEditPage pEdit ->
                     PlayerEdit.view pEdit
+                        |> Html.map PEditMsg
 
                 Fetch fetchingState ->
                     div [ class Bulma.container ]

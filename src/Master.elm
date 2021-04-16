@@ -8,6 +8,8 @@ import Html.Attributes exposing (class, style)
 import Html.Events exposing (onClick)
 import Shared.UI exposing (viewActionBar)
 import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PlayerManager, Site, UIMsg(..))
+import Shared.UI exposing (myButton)
+import Shared.UI exposing (viewControlButtonGroup)
 
 
 subscriptions : Site -> Sub MasterMsg
@@ -183,61 +185,10 @@ viewPlayerManager listEditing index pm =
                 [ pm.ipaddress ++ ":" ++ String.fromInt pm.port_ |> text ]
             ]
         , td []
-            [ viewControlButtonGroup pm
+            [ viewControlButtonGroup pm.id SelectPM |> Html.map MasterMsg
             ]
         ]
 
 
-viewControlButtonGroup : PlayerManager -> Html Msg
-viewControlButtonGroup pm =
-    div
-        [ classList
-            [ Bulma.buttons
-            , Bulma.hasAddons
-            , Bulma.my0
-            , Bulma.isFull
-            , Bulma.isRight
-            ]
-        ]
-        [ button [ classList [ Bulma.button, Bulma.isSmall ] ]
-            [ span [ class Bulma.icon ] [ i [ class "fa fa-undo" ] [] ] ]
-        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
-            [ span [ classList [ Bulma.icon, Bulma.hasTextDanger ] ]
-                [ i [ class "fa fa-stop" ] [] ]
-            ]
-        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
-            [ span [ classList [ Bulma.icon, Bulma.hasTextPrimary ] ]
-                [ i [ class "fa fa-play" ] [] ]
-            ]
-        , button [ classList [ Bulma.button, Bulma.isSmall ] ]
-            [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
-                [ i [ class "fa fa-upload" ] [] ]
-            ]
-        , button
-            [ classList
-                [ Bulma.isPulledRight
-                , Bulma.button
-                , Bulma.isSmall
-                , Bulma.isWhite
-                ]
-            , onClick (SelectPM pm.id)
-            ]
-            [ span [ classList [ Bulma.icon ] ]
-                [ i [ class "fa fa-chevron-right" ] [] ]
-            ]
-        ]
-        |> Html.map MasterMsg
 
 
-myButton : msg -> String -> String -> Html msg
-myButton msg label buttonType =
-    button
-        [ classList
-            [ Bulma.button
-            , buttonType
-            , Bulma.mx1
-            ]
-        , onClick msg
-        ]
-        [ text label
-        ]

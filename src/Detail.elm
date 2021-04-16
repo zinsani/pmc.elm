@@ -3,17 +3,17 @@ module Detail exposing (..)
 import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
-import Html exposing (Html, a, button, div, i, input, label, p, section, span, table, tbody, td, text, thead, tr)
+import Html exposing (Html, a, button, div, i, input, label, p, section, span, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
-import Shared.UI exposing (viewActionBar, viewHorizontalField)
+import Shared.UI exposing (myButton, viewActionBar, viewControlButtonGroup, viewHorizontalField)
 import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager, UIMsg(..))
 
 
 update : DetailMsg -> PC -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        UIMsgOnDetail uiMsg ->
+        UIMsgOnDetailPM uiMsg ->
             case uiMsg of
                 ClickNew ->
                     let
@@ -23,6 +23,7 @@ update msg model =
                     ( PlayerEditPage
                         { siteId = model.siteId
                         , player = newPlayer
+                        , playerManager = model.playerManager
                         }
                     , Cmd.none
                     )
@@ -39,17 +40,34 @@ update msg model =
                         |> Cmd.map FetchingMsg
                     )
 
+        UIMsgOnDetailPlayer uiMsg ->
+            case uiMsg of
+                ClickDelete playerId ->
+                    ( Fetch (UpdatePC model.siteId model.playerManager.id)
+                    , Api.deletePlayer FetchingSite playerId model.playerManager model.siteId
+                        |> Cmd.map FetchingMsg
+                    )
+
+                _ ->
+                    ( DetailPage model, Cmd.none )
+
         GotNewPM newPM ->
             ( Fetch (UpdateSite model.siteId)
             , Api.createNewPM FetchingSite newPM model.siteId
                 |> Cmd.map FetchingMsg
             )
 
-        GotModifiedPM newPM ->
-            ( Fetch (UpdatePC model.siteId newPM.id)
-            , Api.modifyPlayerManager FetchingPC newPM model.siteId
+        GotNewPlayer newPlayer ->
+            ( Fetch (UpdatePC model.siteId newPlayer.parentId)
+            , Api.createNewPlayer FetchingPC newPlayer model.playerManager model.siteId
                 |> Cmd.map FetchingMsg
             )
+
+        SelectPlayer id ->
+            ( DetailPage model, Cmd.none )
+
+        ToggleEditModeOnDetail ->
+            ( DetailPage { model | listEditing = not model.listEditing }, Cmd.none )
 
         _ ->
             ( DetailPage model, Cmd.none )
@@ -60,26 +78,12 @@ view model =
     let
         actionBar =
             viewActionBar ("PC: " ++ model.playerManager.name) ClickBack
-                |> Html.map (UIMsgOnDetail >> DetailMsg)
+                |> Html.map (UIMsgOnDetailPM >> DetailMsg)
     in
     div [ class Bulma.container ]
         [ actionBar
         , section [ class Bulma.section ] [ viewPlayerManager model.playerManager ]
-        , viewPlayers model.playerManager.players
-        ]
-
-
-myButton : msg -> String -> String -> Html msg
-myButton msg label buttonType =
-    button
-        [ classList
-            [ Bulma.button
-            , buttonType
-            , Bulma.mx1
-            ]
-        , onClick msg
-        ]
-        [ text label
+        , viewPlayers model
         ]
 
 
@@ -90,11 +94,20 @@ addNewButton classes =
         |> myButton
             ClickNew
             "Add"
-        |> Html.map (UIMsgOnDetail >> DetailMsg)
+        |> Html.map (UIMsgOnDetailPM >> DetailMsg)
 
 
-viewPlayers : List Player -> Html Msg
-viewPlayers players =
+viewPlayers : PC -> Html Msg
+viewPlayers model =
+    let
+        players =
+            model.playerManager.players
+
+        editButton =
+            String.join " " [ Bulma.isWarning, Bulma.isSmall ]
+                |> myButton ToggleEditModeOnDetail "Edit"
+                |> Html.map DetailMsg
+    in
     if List.isEmpty players then
         div [ class Bulma.container ]
             [ p [ class Bulma.isSize5 ]
@@ -103,12 +116,22 @@ viewPlayers players =
             ]
 
     else
-        table [ class Bulma.table ]
-            [ thead [] []
-            , tbody []
-                (players
-                    |> List.map viewPlayer
-                )
+        div [ classList [ Bulma.container, Bulma.px3 ] ]
+            [ table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
+                [ thead []
+                    [ th [] [ text "No." ]
+                    , th [] [ text "Name" ]
+                    , th [] [ text "Local path" ]
+                    , th [ classList [ Bulma.hasTextRight, Bulma.pr5 ] ]
+                        [ addNewButton [ Bulma.isSmall ]
+                        , editButton
+                        ]
+                    ]
+                , tbody []
+                    (players
+                        |> List.indexedMap (viewPlayer model.listEditing)
+                    )
+                ]
             ]
 
 
@@ -174,7 +197,7 @@ viewPlayerManager model =
             , a [ class Bulma.cardFooterItem, href "#", onClick (ClickDelete model.id) ] [ text "Delete" ]
             ]
         ]
-        |> Html.map (UIMsgOnDetail >> DetailMsg)
+        |> Html.map (UIMsgOnDetailPM >> DetailMsg)
 
 
 viewProperty : Bool -> String -> InputValue -> Html msg
@@ -234,10 +257,33 @@ viewProperty2 label val =
         ]
 
 
-viewPlayer : Player -> Html msg
-viewPlayer player =
+viewPlayer : Bool -> Int -> Player -> Html Msg
+viewPlayer listEditing index player =
+    let
+        head =
+            if listEditing then
+                div [ class Bulma.control ]
+                    [ button
+                        [ classList
+                            [ Bulma.button
+                            , Bulma.isSmall
+                            , Bulma.hasTextDanger
+                            ]
+                        , onClick (ClickDelete player.id)
+                        ]
+                        [ span [ class Bulma.icon ]
+                            [ i [ class "fa fa-trash" ] [] ]
+                        ]
+                    ]
+                    |> Html.map (UIMsgOnDetailPlayer >> DetailMsg)
+
+            else
+                span [ class Bulma.isSize6 ]
+                    [ 1 + index |> String.fromInt |> text ]
+    in
     tr []
-        [ td []
-            [ div [] [ "player " ++ player.name |> text ]
-            ]
+        [ td [] [ head ]
+        , td [] [ player.name |> text ]
+        , td [] [ player.directory ++ "/" ++ Maybe.withDefault "{not executable}" player.exeFileName |> text ]
+        , td [] [ viewControlButtonGroup player.id SelectPlayer |> Html.map DetailMsg ]
         ]

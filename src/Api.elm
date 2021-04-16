@@ -163,6 +163,52 @@ deletePlayerManager msg pmId siteId =
         ]
 
 
+createNewPlayer : msg -> Player -> PlayerManager -> Int -> Cmd msg
+createNewPlayer msg player pm siteId =
+    let
+        newPlayers =
+            List.concat [ pm.players, [ { player | parentId = pm.id } ] ]
+    in
+    Cmd.batch
+        [ { pm | players = newPlayers } |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
+        , getResultAfter msg 0
+        ]
+
+
+modifyPlayer : msg -> Player -> PlayerManager -> Int -> Cmd msg
+modifyPlayer msg player pm siteId =
+    let
+        newPlayers =
+            pm.players
+                |> List.map
+                    (\p ->
+                        if p.id == player.id then
+                            { player | parentId = pm.id }
+
+                        else
+                            p
+                    )
+    in
+    Cmd.batch
+        [ { pm | players = newPlayers } |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
+        , getResultAfter msg 0
+        ]
+
+
+deletePlayer : msg -> Id -> PlayerManager -> Int -> Cmd msg
+deletePlayer msg playerId pm siteId =
+    let
+        newPlayers =
+            pm.players
+                |> List.filter
+                    (\p -> p.id /= playerId)
+    in
+    Cmd.batch
+        [ { pm | players = newPlayers } |> pmEncoder |> Tuple.pair siteId |> storePlayerManager
+        , getResultAfter msg 0
+        ]
+
+
 defaultData : Data
 defaultData =
     { sites = defaultSites
@@ -471,11 +517,13 @@ playerDecoder =
         (Decode.field "directory" Decode.string)
         (Decode.maybe (Decode.field "exeFileName" Decode.string))
         (Decode.field "sourceDir" Decode.string)
-        (Decode.map6 PlayerOptions
-            (Decode.maybe (Decode.field "parameters" Decode.string))
-            (Decode.field "delaySecondsToStart" Decode.float)
-            (Decode.field "watchDogEnabled" Decode.bool)
-            (Decode.maybe (Decode.field "excludeFiles" (Decode.list Decode.string)))
-            (Decode.maybe (Decode.field "excludeDirectories" (Decode.list Decode.string)))
-            (Decode.maybe (Decode.field "logDir" Decode.string))
+        (Decode.field "options"
+            (Decode.map6 PlayerOptions
+                (Decode.maybe (Decode.field "parameters" Decode.string))
+                (Decode.field "delaySecondsToStart" Decode.float)
+                (Decode.field "watchDogEnabled" Decode.bool)
+                (Decode.maybe (Decode.field "excludeFiles" (Decode.list Decode.string)))
+                (Decode.maybe (Decode.field "excludeDirectories" (Decode.list Decode.string)))
+                (Decode.maybe (Decode.field "logDir" Decode.string))
+            )
         )

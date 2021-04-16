@@ -48,6 +48,7 @@ type alias PlayerManagerEdit =
 type alias PlayerEdit =
     { siteId : Int
     , player : Player
+    , playerManager : PlayerManager
     }
 
 
@@ -97,13 +98,13 @@ type MasterMsg
 
 type DetailMsg
     = GotNewPM PlayerManager
-    | GotModifiedPM PlayerManager
     | EndEditingPM
     | InputPName String
     | ToggleEditModeOnDetail
-    | GotNewIdOfPlayer Id
+    | GotNewPlayer Player
     | SelectPlayer Id
-    | UIMsgOnDetail UIMsg
+    | UIMsgOnDetailPM UIMsg
+    | UIMsgOnDetailPlayer UIMsg
 
 
 type FetchingMsg
@@ -133,6 +134,7 @@ type PEditMsg
     | PEditExeFileName String
     | PEditSourceDir String
     | PEditParameters String
+    | PEditWatchDogEnabled Bool
     | PEditDelaySecondsToStart (Maybe Float)
     | PEditExcludeFiles String
     | PEditExcludeDirectories String
