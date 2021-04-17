@@ -136,7 +136,7 @@ update msg model =
                     )
 
         PEditCancel ->
-            Debug.todo "branch 'PEditCancel' not implemented"
+            ( Fetch (FetchPC model.siteId model.playerManager.id), Api.fetch () )
 
 
 view : PlayerEdit -> Html PEditMsg

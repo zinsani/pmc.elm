@@ -10,6 +10,8 @@ import Shared.UI exposing (viewActionBar)
 import Types exposing (FetchModel(..), FetchingMsg(..), Id(..), MasterMsg(..), Model(..), Msg(..), PlayerManager, Site, UIMsg(..))
 import Shared.UI exposing (myButton)
 import Shared.UI exposing (viewControlButtonGroup)
+import Shared.UI exposing (selectButton)
+import Html exposing (th)
 
 
 subscriptions : Site -> Sub MasterMsg
@@ -121,15 +123,16 @@ viewPlayerManagers site playerManagers =
                     ]
                     [ table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
                         [ thead []
-                            [ td [] [ text "No." ]
-                            , td [ style "width" "30%" ] [ text "Name" ]
-                            , td [ style "width" "30%" ] [ text "Location" ]
-                            , td [ style "width" "30%" ]
-                                [ div [ classList [ Bulma.buttons, Bulma.isRight, Bulma.pr5 ] ]
+                            [ th [] [ text "No." ]
+                            , th [ style "width" "30%" ] [ text "Name" ]
+                            , th [ style "width" "30%" ] [ text "Location" ]
+                            , th [ style "width" "30%" ]
+                                [ div [ classList [ Bulma.buttons, Bulma.isRight ] ]
                                     [ addNewButton [ Bulma.isSmall ]
                                     , editButton
                                     ]
                                 ]
+                            , th [] []
                             ]
                         , tbody []
                             (playerManagers
@@ -185,7 +188,11 @@ viewPlayerManager listEditing index pm =
                 [ pm.ipaddress ++ ":" ++ String.fromInt pm.port_ |> text ]
             ]
         , td []
-            [ viewControlButtonGroup pm.id SelectPM |> Html.map MasterMsg
+            [ viewControlButtonGroup pm Nothing
+            ]
+        , td []
+            [ 
+             selectButton pm.id SelectPM |> Html.map MasterMsg
             ]
         ]
 

@@ -3,10 +3,11 @@ module Detail exposing (..)
 import Api
 import Bulma.Classes as Bulma
 import Bulma.Helpers exposing (classList)
+import Form.Player as PlayerEdit
 import Html exposing (Html, a, button, div, i, input, label, p, section, span, table, tbody, td, text, th, thead, tr)
 import Html.Attributes exposing (checked, class, disabled, href, readonly, style, type_, value)
 import Html.Events exposing (onClick)
-import Shared.UI exposing (myButton, viewActionBar, viewControlButtonGroup, viewHorizontalField)
+import Shared.UI exposing (myButton, selectButton, viewActionBar, viewControlButtonGroup, viewHorizontalField)
 import Types exposing (DetailMsg(..), FetchModel(..), FetchingMsg(..), Id(..), InputValue(..), Model(..), Msg(..), PC, Player, PlayerManager, UIMsg(..))
 
 
@@ -64,7 +65,24 @@ update msg model =
             )
 
         SelectPlayer id ->
-            ( DetailPage model, Cmd.none )
+            let
+                maybePlayer =
+                    List.filter (\p -> p.id == id) model.playerManager.players
+                        |> List.head
+            in
+            case maybePlayer of
+                Just player ->
+                    let
+                        playerEdit =
+                            { siteId = model.siteId
+                            , player = player
+                            , playerManager = model.playerManager
+                            }
+                    in
+                    ( PlayerEditPage playerEdit, Cmd.none )
+
+                Nothing ->
+                    ( DetailPage model, Cmd.none )
 
         ToggleEditModeOnDetail ->
             ( DetailPage { model | listEditing = not model.listEditing }, Cmd.none )
@@ -119,17 +137,19 @@ viewPlayers model =
         div [ classList [ Bulma.container, Bulma.px3 ] ]
             [ table [ classList [ Bulma.table, Bulma.isFullwidth ] ]
                 [ thead []
-                    [ th [] [ text "No." ]
+                    [ th [ class Bulma.hasTextCentered ] [ text "No." ]
                     , th [] [ text "Name" ]
                     , th [] [ text "Local path" ]
-                    , th [ classList [ Bulma.hasTextRight, Bulma.pr5 ] ]
+                    , th [] [ text "Status" ]
+                    , th [ classList [ Bulma.hasTextRight ] ]
                         [ addNewButton [ Bulma.isSmall ]
                         , editButton
                         ]
+                    , th [] []
                     ]
                 , tbody []
                     (players
-                        |> List.indexedMap (viewPlayer model.listEditing)
+                        |> List.indexedMap (viewPlayer model.playerManager model.listEditing)
                     )
                 ]
             ]
@@ -139,12 +159,14 @@ viewPlayerManager : PlayerManager -> Html Msg
 viewPlayerManager model =
     div [ classList [ Bulma.card ] ]
         [ div [ class Bulma.cardHeader ]
-            [ div [ class Bulma.cardHeaderTitle ]
-                [ div [ classList [ Bulma.tags, Bulma.isSmall ] ]
+            [ div [ classList [Bulma.cardHeaderTitle, Bulma.columns, Bulma.isVcentered] ]
+                [ div [ classList [ Bulma.tags, Bulma.isSmall, Bulma.column ] ]
                     [ span [ class Bulma.mr3 ] [ text "Status" ]
                     , span [ classList [ Bulma.tag, Bulma.isPrimary ] ] [ text "online" ]
                     , span [ classList [ Bulma.tag, Bulma.isDanger ] ] [ text "error" ]
                     ]
+                , div [ classList [ Bulma.isPulledRight, Bulma.column, Bulma.isNarrow ] ] 
+                    [ viewControlButtonGroup model Nothing ]
                 ]
             ]
         , div [ class Bulma.cardContent ]
@@ -196,8 +218,8 @@ viewPlayerManager model =
             [ a [ class Bulma.cardFooterItem, href "#", onClick (ClickEdit model.id) ] [ text "Edit" ]
             , a [ class Bulma.cardFooterItem, href "#", onClick (ClickDelete model.id) ] [ text "Delete" ]
             ]
+            |> Html.map (UIMsgOnDetailPM >> DetailMsg)
         ]
-        |> Html.map (UIMsgOnDetailPM >> DetailMsg)
 
 
 viewProperty : Bool -> String -> InputValue -> Html msg
@@ -257,12 +279,12 @@ viewProperty2 label val =
         ]
 
 
-viewPlayer : Bool -> Int -> Player -> Html Msg
-viewPlayer listEditing index player =
+viewPlayer : PlayerManager -> Bool -> Int -> Player -> Html Msg
+viewPlayer pm listEditing index player =
     let
         head =
             if listEditing then
-                div [ class Bulma.control ]
+                div [ classList [ Bulma.control, Bulma.hasTextCentered ] ]
                     [ button
                         [ classList
                             [ Bulma.button
@@ -278,12 +300,34 @@ viewPlayer listEditing index player =
                     |> Html.map (UIMsgOnDetailPlayer >> DetailMsg)
 
             else
-                span [ class Bulma.isSize6 ]
+                p [ classList [ Bulma.isSize6, Bulma.hasTextCentered ] ]
                     [ 1 + index |> String.fromInt |> text ]
+
+        localPathClasses =
+            case player.exeFileName of
+                Nothing ->
+                    Bulma.hasTextGrey
+
+                Just exe ->
+                    Bulma.hasTextBlack
     in
     tr []
         [ td [] [ head ]
         , td [] [ player.name |> text ]
-        , td [] [ player.directory ++ "/" ++ Maybe.withDefault "{not executable}" player.exeFileName |> text ]
-        , td [] [ viewControlButtonGroup player.id SelectPlayer |> Html.map DetailMsg ]
+        , td []
+            [ span [ class localPathClasses ]
+                [ player.directory ++ "/" ++ Maybe.withDefault "{not executable}" player.exeFileName |> text ]
+            ]
+        , td []
+            [ div [ classList [ Bulma.tags, Bulma.isSmall ] ]
+                [ span [ classList [ Bulma.tag, Bulma.isPrimary ] ] [ text "online" ]
+                , span [ classList [ Bulma.tag, Bulma.isDanger ] ] [ text "error" ]
+                ]
+            ]
+        , td []
+            [ viewControlButtonGroup pm (Just player.id)
+            ]
+        , td []
+            [  selectButton player.id SelectPlayer |> Html.map DetailMsg
+            ]
         ]

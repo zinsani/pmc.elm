@@ -5,10 +5,7 @@ import Bulma.Helpers exposing (classList)
 import Html exposing (Html, button, div, i, p, span, text)
 import Html.Attributes exposing (class)
 import Html.Events exposing (onClick)
-import Types exposing (PlayerManager)
-import Types exposing (Msg(..))
-import Types exposing (MasterMsg(..))
-import Types exposing (Id(..))
+import Types exposing (Id(..), MasterMsg(..), Msg(..), PlayerManager)
 
 
 viewHorizontalField : Html msg -> Html msg -> Html msg
@@ -80,6 +77,7 @@ backButton msg =
             [ i [ classList [ "fa", "fa-arrow-left" ] ] [] ]
         ]
 
+
 myButton : msg -> String -> String -> Html msg
 myButton msg label buttonType =
     button
@@ -93,8 +91,9 @@ myButton msg label buttonType =
         [ text label
         ]
 
-viewControlButtonGroup : Id -> (Id -> msg) -> Html msg
-viewControlButtonGroup id msg =
+
+viewControlButtonGroup : PlayerManager -> Maybe Id -> Html msg
+viewControlButtonGroup playerManager playerId =
     div
         [ classList
             [ Bulma.buttons
@@ -118,16 +117,20 @@ viewControlButtonGroup id msg =
             [ span [ classList [ Bulma.icon, Bulma.hasTextSuccess ] ]
                 [ i [ class "fa fa-upload" ] [] ]
             ]
-        , button
-            [ classList
-                [ Bulma.isPulledRight
-                , Bulma.button
-                , Bulma.isSmall
-                , Bulma.isWhite
-                ]
-            , onClick (msg id)
+        ]
+
+
+selectButton : a -> (a -> msg) -> Html msg
+selectButton id msg =
+    button
+        [ classList
+            [ Bulma.isPulledRight
+            , Bulma.button
+            , Bulma.isSmall
+            , Bulma.isWhite
             ]
-            [ span [ classList [ Bulma.icon ] ]
-                [ i [ class "fa fa-chevron-right" ] [] ]
-            ]
+        , onClick (msg id)
+        ]
+        [ span [ classList [ Bulma.icon ] ]
+            [ i [ class "fa fa-chevron-right" ] [] ]
         ]
